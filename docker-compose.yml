@@ -1,0 +1,9 @@
+version: '3'
+services:
+  yunmai:
+    build: .
+    command: sh -c 'yarn install && node ble.js'
+    volumes:
+      - .:/src
+    privileged: true
+    network_mode: "host"
