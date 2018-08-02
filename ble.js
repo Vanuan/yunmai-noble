@@ -1,5 +1,17 @@
 var noble = require('noble');
 var Parser = require('binary-parser').Parser;
+const WebSocket = require('ws');
+
+const wss = new WebSocket.Server({ port: 8080 });
+
+const broadcast = function broadcast(data) {
+  const stringData = JSON.stringify(data);
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(stringData);
+    }
+  });
+};
 
 noble.on('stateChange', function(state) {
   console.log('Bluetooth', state)
@@ -107,9 +119,13 @@ function handleWeighting(data) {
   if(packet.packetType === 1) {
     const measuring = parseWeightingProgress(packet.data);
     display(measuring);
+    broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measuring', data: measuring });
   } else if(packet.packetType === 2) {
     const measured = parseWeightingCompleted(packet.data);
     display(measured);
+    broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measured', data: measured });
+  } else {
+    broadcast({ data: packetType.data, packetType: 'unknown' });
   }
 }
 

@@ -2,7 +2,19 @@
 
 Yunmai scales BLE node app in docker
 
-## Usage
+## Idea
+
+
+
+## Install on Raspberry Pi
+
+1. Install docker
+2. `docker run` the container
+```
+$ curl -fsSL https:// | sh
+```
+
+## Development
 ```
 $ docker-compose up --build
 ...
@@ -20,3 +32,4 @@ yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.27 kg
 yunmai_1  | Tue Oct 31 2017 10:07:24 GMT+0000 (UTC) 7.31 kg
 yunmai_1  | Tue Oct 31 2017 10:07:24 GMT+0000 (UTC) 7.31 kg
 ```
+
