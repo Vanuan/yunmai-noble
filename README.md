@@ -14,7 +14,7 @@ Yunmai scales BLE node app in docker
 $ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh | sh
 ```
 
-## Development
+## Development (on any laptop that supports BLE)
 ```
 $ docker-compose up --build
 ...
