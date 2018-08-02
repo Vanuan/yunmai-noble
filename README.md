@@ -4,14 +4,14 @@ Yunmai scales BLE node app in docker
 
 ## Idea
 
-
+![Idea](idea.jpg)
 
 ## Install on Raspberry Pi
 
 1. Install docker
 2. `docker run` the container
 ```
-$ curl -fsSL https:// | sh
+$ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh | sh
 ```
 
 ## Development
