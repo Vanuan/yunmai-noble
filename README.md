@@ -1,52 +1,62 @@
-# yumnai-noble
+# yunmai-noble
 
-Yunmai scales BLE node app in docker
+Yunmai scales BLE node, simulator, and weight historian design.
 
 ## Idea
 
 ```mermaid
 flowchart TD
-    browser["browser"] --> webui["Web UI"]
+    human(("human")) --> scales["yunmai scales"]
+    human --> client["UI client (web, desktop, ...)"]
 
-    webui -->|"RESTful API"| historian["Weight historian"]
-    historian --> database[("Database")]
+    scales -->|"Bluetooth"| node["yunmai-noble"]
+    node -->|"WebSocket JSON (completed)"| historian["Weight historian (Bun service)"]
+    historian --> db[("SQLite")]
 
-    webui --> ws(("Web socket"))
-    historian --> ws
-    ws --> node["yunmai-noble (this project)"]
-
-    node -->|"Bluetooth"| scales["yunmai scales"]
+    client -->|"REST /api/measurements"| historian
+    node -->|"WebSocket live"| client
 ```
+
+The UI client may be a web app, a desktop app (for example GPUI), or any other
+consumer. The historian is a background Bun service that stores history and
+serves the REST API.
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `packages/node/` | BLE node, simulator, and node tests |
+| `packages/contract/` | Shared WebSocket v1 zod schemas and types |
+| `packages/historian/`, `packages/ui/` | Planned historian and UI clients |
+| `project/` | Design and status documents |
 
 ## Install on Raspberry Pi
 
-1. Install docker
-2. `docker run` the container
+1. Install Docker
+2. Run the installer; it builds the image from the current `Dockerfile` and
+   starts the container:
 ```
 $ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh | sh
 ```
 
+The deployment image uses Node 22 and npm so it builds on 32-bit and 64-bit
+ARM. Bun is used for development and tests, but has no arm32 image.
+
 ## Development (on any laptop that supports BLE)
 
-Requires Node 22 for the real BLE link (see `.nvmrc`) and Bun for package
-management, tests, and TypeScript.
+Requires Node 22 for the real BLE link (see `.nvmrc`) and Bun 1.3+ for package
+management, tests, and TypeScript. Local development does not use Docker.
 
 ```
-$ docker-compose up --build
-...
-yunmai_1  | Bluetooth poweredOn
-yunmai_1  | Looking for peripheral...
-yunmai_1  | Yunmai scales detected
-yunmai_1  | Waiting for weighting...
-yunmai_1  | Tue Oct 31 2017 10:07:22 GMT+0000 (UTC) 7.41 kg
-yunmai_1  | Tue Oct 31 2017 10:07:22 GMT+0000 (UTC) 7.53 kg
-yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.41 kg
-yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.37 kg
-yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.33 kg
-yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.23 kg
-yunmai_1  | Tue Oct 31 2017 10:07:23 GMT+0000 (UTC) 7.27 kg
-yunmai_1  | Tue Oct 31 2017 10:07:24 GMT+0000 (UTC) 7.31 kg
-yunmai_1  | Tue Oct 31 2017 10:07:24 GMT+0000 (UTC) 7.31 kg
+$ bun install
+$ bun run start
+Bluetooth poweredOn
+Looking for peripheral...
+Yunmai scales detected
+Waiting for weighting...
+[Sun Nov 01 2026 15:35:16 GMT+0200] 7.9 kg
+[Sun Nov 01 2026 15:35:16 GMT+0200] 7.7 kg
+[Sun Nov 01 2026 15:35:16 GMT+0200] 7.5 kg
 ```
 
 ## Simulator (no BLE hardware)
@@ -74,5 +84,6 @@ Node's ABI and cannot be loaded by Bun.
 ## WebSocket contract
 
 The message format is specified in [`project/WEBSOCKET.md`](project/WEBSOCKET.md).
-TypeScript types and zod schemas live in `src/contract/websocket.ts`.
+TypeScript types and zod schemas live in
+`packages/contract/src/websocket.ts`.
 

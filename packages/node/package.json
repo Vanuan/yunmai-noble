@@ -1,0 +1,19 @@
+{
+  "name": "@yunmai-noble/node",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node ble.js",
+    "dev": "bun run ble.js",
+    "simulate": "bun run bin/simulate.js",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-26",
+    "binary-parser": "^2.3.0",
+    "ws": "^8.22.1"
+  }
+}

@@ -3,13 +3,15 @@
 ## Goal
 
 Collect measurements from one or more `yunmai-noble` nodes, persist them, and
-expose query APIs for the Web UI. The historian is the "Weight historian" and
-"RESTful API" boxes in the [idea diagram](../README.md#idea).
+expose query APIs for UI clients (web, desktop, or other). The historian is a
+background Bun service: the "Weight historian" and "RESTful API" boxes in the
+[idea diagram](../README.md#idea).
 
 ## Non-goals
 
-- Real-time streaming to the browser. The Web UI continues to read live data
-  from the node's WebSocket.
+- Real-time streaming to clients. UI clients continue to read live data from
+  the node's WebSocket.
+- Serving UI assets. Clients are separate deployables.
 - User accounts, scale-user identity mapping, or goals.
 - Multi-tenant access control.
 - Replacing the BLE node's WebSocket broadcaster.
@@ -48,12 +50,14 @@ persisted; `measurement.measuring` is transient progress.
 
 ```mermaid
 flowchart TD
-    scale["yunmai scales"] -->|"Bluetooth"| node["yunmai-noble"]
-    node -->|"WebSocket v1 (completed)"| historian["Weight historian"]
+    human(("human")) --> scales["yunmai scales"]
+    human --> client["UI client (web, desktop, ...)"]
+
+    scales -->|"Bluetooth"| node["yunmai-noble"]
+    node -->|"WebSocket v1 (completed)"| historian["Weight historian (Bun service)"]
+    node -->|"WebSocket live"| client
+    client -->|"GET /api/measurements"| historian
     historian -->|"INSERT OR IGNORE"| db[("SQLite")]
-    ui["Web UI"] -->|"GET /api/measurements"| historian
-    ui -->|"WebSocket live"| node
-    browser["browser"] --> ui
 ```
 
 The historian is a TypeScript service that runs on Bun with three
@@ -64,7 +68,7 @@ responsibilities (Node 22 is only required for the BLE link):
 2. **Store** — a `MeasurementStore` interface backed by SQLite.
 3. **Serve** — a small HTTP API for history and health.
 
-The Web UI talks to the historian for history and to the node for live data,
+UI clients talk to the historian for history and to the node for live data,
 matching the idea diagram.
 
 ## Data model
@@ -261,37 +265,35 @@ Returns `503` when the database or upstream connection is unhealthy.
 
 ## Repository placement
 
-For the first version, add the historian to this package:
+Add the historian as a workspace package:
 
 ```
-bin/historian.ts          entry point
-src/historian/config.ts
-src/historian/ingest.ts   WebSocket client and validation
-src/historian/store.ts    MeasurementStore + SQLite adapter
-src/historian/server.ts   HTTP routing and JSON responses
-src/historian/app.ts      composition root
-test/historian/*.test.ts
+packages/historian/bin/historian.ts          entry point
+packages/historian/src/config.ts
+packages/historian/src/ingest.ts            WebSocket client and validation
+packages/historian/src/store.ts             MeasurementStore + SQLite adapter
+packages/historian/src/server.ts            HTTP routing and JSON responses
+packages/historian/src/app.ts               composition root
+packages/historian/test/*.test.ts
 ```
 
-It needs only `ws` (already a dependency) and `bun:sqlite`. If the Web UI and
-historian grow separate release cycles, extract them into `services/historian/`
-with its own `package.json`.
+It needs `ws` and `bun:sqlite`, plus the existing `@yunmai-noble/contract`
+package for message validation. UI clients get their own `packages/ui/`
+package.
 
 ## Deployment
 
-Add a `historian` service to `docker-compose.yml` with a persistent volume:
+The historian is a Bun service. Give it a small Docker image when it is ready
+and run it next to the node:
 
-```yaml
-historian:
-  build: .
-  command: bun run bin/historian.ts
-  environment:
-    YUNMAI_WS_URL: ws://127.0.0.1:8080
-    YUNMAI_DEVICE_ID: pi-scale-1
-    DATABASE_PATH: /data/historian.sqlite
-  network_mode: host
-  volumes:
-    - historian-data:/data
+```
+docker run -d --name historian \
+  --network host \
+  -e YUNMAI_WS_URL=ws://127.0.0.1:8080 \
+  -e YUNMAI_DEVICE_ID=pi-scale-1 \
+  -e DATABASE_PATH=/data/historian.sqlite \
+  -v historian-data:/data \
+  yunmai-historian
 ```
 
 Host networking lets the historian reach the node at `127.0.0.1:8080` on Linux
@@ -304,7 +306,7 @@ node address and publish port `3000` instead.
   keep the Pi behind a firewall or VPN.
 - `HISTORIAN_API_TOKEN` is reserved for future ingest or mutation endpoints.
 - Every SQL statement uses parameters; no string interpolation of values.
-- CORS is restricted to the configured Web UI origin in production.
+- CORS is restricted to the configured client origins in production.
 
 ## Testing
 
@@ -324,20 +326,16 @@ node address and publish port `3000` instead.
 2. Message validation and duplicate handling.
 3. WebSocket ingestion with reconnect and health state.
 4. HTTP API, CORS, error handling, API tests.
-5. Compose service, persistent volume, and docs.
+5. Deployment service, persistent volume, and docs.
 6. End-to-end test with the simulator.
 
 ## Decisions to confirm
 
-1. **SQLite engine:** Bun's built-in `bun:sqlite` (recommended) or
-   `node:sqlite`/`better-sqlite3` if the historian runs on Node.
-2. **Package layout:** same package with `bin/historian.ts` (recommended) or a
-   separate `services/historian/` package now.
-3. **Live streaming:** Web UI connects to the node directly (recommended, as
-   drawn) or the historian relays live data over SSE/WebSocket.
-4. **Device identity:** configuration-based id for one node (recommended) or a
+1. **Live streaming:** UI clients connect to the node directly (recommended,
+   as drawn) or the historian relays live data over SSE/WebSocket.
+2. **Device identity:** configuration-based id for one node (recommended) or a
    registration protocol for many.
-5. **API authentication:** defer reads to the network boundary (recommended) or
+3. **API authentication:** defer reads to the network boundary (recommended) or
    require a token from the start.
-6. **Contract migration:** update the node to emit v1 before building ingestion
+4. **Contract migration:** update the node to emit v1 before building ingestion
    (recommended), or ship a v0 adapter in the historian first.

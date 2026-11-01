@@ -3,7 +3,8 @@
 Status: draft v1. The zod schemas and tests exist; the node still emits the
 v0 format described under [Migrating from v0](#migrating-from-v0).
 
-Source of truth: [`src/contract/websocket.ts`](../src/contract/websocket.ts).
+Source of truth:
+[`packages/contract/src/websocket.ts`](../packages/contract/src/websocket.ts).
 
 ## Transport
 
@@ -217,7 +218,7 @@ v1 must not parse v0 frames without an adapter.
 ## Using the schemas
 
 ```ts
-import { parseServerMessage } from "../src/contract/websocket";
+import { parseServerMessage } from "@yunmai-noble/contract";
 
 const message = parseServerMessage(JSON.parse(raw));
 

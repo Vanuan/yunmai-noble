@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.3.13",
+  "workspaces": ["packages/*"],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "start": "node ble.js",
-    "dev": "bun run ble.js",
-    "simulate": "bun run bin/simulate.js",
+    "start": "bun run --cwd packages/node start",
+    "dev": "bun run --cwd packages/node dev",
+    "simulate": "bun run --cwd packages/node simulate",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -18,12 +19,6 @@
     "@abandonware/noble",
     "usb"
   ],
-  "dependencies": {
-    "@abandonware/noble": "^1.9.2-26",
-    "binary-parser": "^2.3.0",
-    "ws": "^8.22.1",
-    "zod": "^4.6.7"
-  },
   "devDependencies": {
     "@types/bun": "^1.4.4",
     "@types/node": "^22",

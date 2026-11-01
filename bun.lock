@@ -4,19 +4,34 @@
   "workspaces": {
     "": {
       "name": "yunmai-noble",
-      "dependencies": {
-        "@abandonware/noble": "^1.9.2-26",
-        "binary-parser": "^2.3.0",
-        "ws": "^8.22.1",
-        "zod": "^4.6.7",
-      },
       "devDependencies": {
         "@types/bun": "^1.4.4",
         "@types/node": "^22",
         "typescript": "^7.0.2",
       },
     },
+    "packages/contract": {
+      "name": "@yunmai-noble/contract",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.6.7",
+      },
+    },
+    "packages/node": {
+      "name": "@yunmai-noble/node",
+      "version": "0.1.0",
+      "dependencies": {
+        "@abandonware/noble": "^1.9.2-26",
+        "binary-parser": "^2.3.0",
+        "ws": "^8.22.1",
+      },
+    },
   },
+  "trustedDependencies": [
+    "@abandonware/noble",
+    "@abandonware/bluetooth-hci-socket",
+    "usb",
+  ],
   "packages": {
     "@abandonware/bluetooth-hci-socket": ["@abandonware/bluetooth-hci-socket@0.5.3-12", "", { "dependencies": { "@mapbox/node-pre-gyp": "^1.0.11", "debug": "^4.3.4", "nan": "^2.18.0", "node-gyp": "^10.0.1" }, "optionalDependencies": { "usb": "^2.11.0" }, "os": [ "!aix", "!sunos", "!darwin", "!openbsd", ] }, "sha512-qo2cBoh94j6RPusaNXSLYI8Bzxuz01Bx3MD80a/QYzhHED/FZ6Y0k2w2kRbfIA2EEhFSCbXrBZDQlpilL4nbxA=="],
 
@@ -77,6 +92,10 @@
     "@typescript/typescript-win32-arm64": ["@typescript/typescript-win32-arm64@7.0.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="],
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
+
+    "@yunmai-noble/contract": ["@yunmai-noble/contract@workspace:packages/contract"],
+
+    "@yunmai-noble/node": ["@yunmai-noble/node@workspace:packages/node"],
 
     "abbrev": ["abbrev@1.1.1", "", {}, ""],
 

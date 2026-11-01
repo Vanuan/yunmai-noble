@@ -9,7 +9,7 @@ import {
   safeParseServerMessage,
   type CompletedMessage,
   type ServerMessage,
-} from "../src/contract/websocket";
+} from "../src/websocket";
 
 const envelope = {
   v: PROTOCOL_VERSION,
