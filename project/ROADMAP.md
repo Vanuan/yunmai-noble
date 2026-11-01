@@ -16,6 +16,8 @@
   stops drivers at runtime, so simulated and real scales can feed one historian.
 - **Multi-source:** the historian follows every configured upstream and keys
   measurements by the v1 `deviceId`.
+- **Configuration:** `yunmai-noble.toml` with environment overrides, so the
+  same file works for a desktop install and a container.
 - **Local development:** Bun and Node run directly; Docker is only for Pi
   deployment.
 - **Deployment:** `run.sh` builds the default D-Bus image, or the legacy noble

@@ -4,6 +4,7 @@ import { loadConfig } from "@yunmai-noble/historian/config";
 import { consoleLogger } from "@yunmai-noble/historian/logger";
 
 import { loadSuiteConfig } from "./config";
+import { loadConfigFile, parseConfigArg } from "./config-file";
 import { handleSuiteRequest } from "./control";
 import { DriverSupervisor } from "./supervisor";
 import { ensureUiBuild } from "./ui";
@@ -11,10 +12,14 @@ import { ensureUiBuild } from "./ui";
 let shuttingDown = false;
 
 async function main(): Promise<void> {
-  const suiteConfig = loadSuiteConfig();
+  const cliConfig = parseConfigArg(process.argv.slice(2));
+  const configFile = loadConfigFile(
+    cliConfig ? { ...process.env, YUNMAI_CONFIG: cliConfig } : process.env
+  );
+  const suiteConfig = loadSuiteConfig(configFile.env);
   const historianConfig = loadConfig({
-    ...process.env,
-    DATABASE_PATH: process.env.DATABASE_PATH ?? "./data/historian.sqlite",
+    ...configFile.env,
+    DATABASE_PATH: configFile.env.DATABASE_PATH ?? "./data/historian.sqlite",
   });
 
   ensureUiBuild(Bun.which("bun") ?? process.execPath, consoleLogger);
@@ -33,6 +38,7 @@ async function main(): Promise<void> {
 
   supervisor = new DriverSupervisor({
     config: suiteConfig,
+    env: configFile.env,
     logger: consoleLogger,
     onStart: (view) => {
       app.ingests.add({
@@ -79,6 +85,9 @@ async function main(): Promise<void> {
     `suite: drivers ${suiteConfig.drivers.join(", ") || "none"}; ` +
       `control at /api/suite`
   );
+  if (configFile.path) {
+    consoleLogger.log(`suite: config ${configFile.path}`);
+  }
 }
 
 void main().catch((error: unknown) => {

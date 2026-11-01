@@ -72,8 +72,13 @@ distribution can embed this supervisor or ship it as a sidecar.
 
 ## Configuration
 
+`packages/suite` reads `yunmai-noble.toml` from the working directory, then
+`$XDG_CONFIG_HOME/yunmai-noble/config.toml`. `--config` or `YUNMAI_CONFIG`
+selects another file; environment variables override file values.
+
 | Variable | Boundary | Purpose |
 | --- | --- | --- |
+| `YUNMAI_CONFIG` | Internal | Config file path |
 | `BLE_DRIVER` | BLE | `noble`, `dbus`, or `simulator` |
 | `DBUS_SYSTEM_BUS_ADDRESS` | BLE | D-Bus socket for `dbus` |
 | `SIMULATOR_*` | BLE | Simulated scale behavior |

@@ -41,18 +41,40 @@ combination of them at once.
 
 ```sh
 bun run suite                              # dbus driver, UI at :3000
-SUITE_SCALES=simulator bun run suite       # no hardware
+bun run suite --config ./lab.toml          # explicit config file
+SUITE_SCALES=simulator bun run suite       # environment override
 SUITE_SCALES=dbus,simulator bun run suite  # real scale and simulation together
 ```
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SUITE_SCALES` | `dbus` | Initial drivers: `dbus`, `simulator`, `noble` |
-| `SUITE_WS_PORT_BASE` | `8080` | Driver ports: dbus `base`, simulator `base+1`, noble `base+2` |
-| `SUITE_NODE_ID_PREFIX` | `scale` | Device identity is `prefix-driver` |
-| `SUITE_DRIVER_RESTART_MS` | `2000` | Restart delay after a driver exits; `0` disables |
-| `HISTORIAN_PORT`, `HISTORIAN_HOST` | `3000`, `0.0.0.0` | HTTP/UI bind address |
-| `DATABASE_PATH` | `./data/historian.sqlite` | SQLite file |
+## Configuration
+
+The suite reads `yunmai-noble.toml` from the working directory, then
+`$XDG_CONFIG_HOME/yunmai-noble/config.toml` (default
+`~/.config/yunmai-noble/config.toml`). `--config <path>` or `YUNMAI_CONFIG`
+selects another file. Copy [yunmai-noble.example.toml](yunmai-noble.example.toml)
+to get started; relative paths resolve from the working directory.
+
+```toml
+[historian]
+port = 3000
+database_path = "./data/historian.sqlite"
+
+[drivers]
+initial = ["dbus", "simulator"]
+port_base = 8080
+node_id_prefix = "scale"
+restart_ms = 2000
+
+[simulator]
+weight_kg = 7.5
+```
+
+Environment variables override the file, which keeps containers and systemd
+units simple: `HISTORIAN_PORT`, `HISTORIAN_HOST`, `DATABASE_PATH`,
+`SUITE_SCALES`, `SUITE_WS_PORT_BASE`, `SUITE_NODE_ID_PREFIX`,
+`SUITE_DRIVER_RESTART_MS`, and `SIMULATOR_*`. The example file lists every
+supported key. Standalone `bun run historian` and `bun run dev` remain
+driven by environment variables only.
 
 ### Runtime driver switching
 
@@ -67,7 +89,7 @@ curl -X POST http://127.0.0.1:3000/api/suite/drivers/dbus/stop
 
 `GET /api/suite` returns each driver's state (`stopped`, `running`,
 `restarting`, ...), pid, port, device id, restart count, and upstream status.
-A crashed driver restarts after `SUITE_DRIVER_RESTART_MS` unless stopped.
+A crashed driver restarts after `drivers.restart_ms` unless stopped.
 
 Drivers are child processes so they stay isolated and can use different
 runtimes: `dbus` and `simulator` run under Bun, `noble` under Node 22. The
@@ -81,10 +103,12 @@ suite builds `packages/ui/dist` on first run; rebuild it with
 
 ## Simulator
 
-`SUITE_SCALES=simulator` runs a scale below the GATT layer inside the node
-child. It repeats a weighing every few seconds and accepts the same commands as
-the hardware. Tune it with `SIMULATOR_WEIGHT_KG`, `SIMULATOR_STEPS`,
-`SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`, and `SIMULATOR_REPEAT`.
+`SUITE_SCALES=simulator` (or `[drivers] initial = ["simulator"]`) runs a scale
+below the GATT layer inside the node child. It repeats a weighing every few
+seconds and accepts the same commands as the hardware. Tune it under
+`[simulator]` in the config file, or with `SIMULATOR_WEIGHT_KG`,
+`SIMULATOR_STEPS`, `SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`, and
+`SIMULATOR_REPEAT`.
 
 `bun run simulate` is a separate interactive REPL that speaks the scale side of
 the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
@@ -137,6 +161,7 @@ packages/suite      Single executable: historian + UI + driver supervisor
 packages/ui         React/Vite/Tailwind dashboard
 apps/desktop        planned Rust/GPUI desktop client
 project/            design and status documents
+yunmai-noble.example.toml  sample suite configuration
 ```
 
 ## Documentation

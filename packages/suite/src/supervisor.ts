@@ -86,6 +86,7 @@ interface DriverRecord {
 export interface SupervisorOptions {
   config: SuiteConfig;
   logger: Logger;
+  env?: Record<string, string | undefined>;
   onStart?: (view: DriverView) => void;
   onStop?: (view: DriverView, reason: "stopped" | "exited") => void;
   bunRuntime?: string;
@@ -102,6 +103,7 @@ function unref(timer: ReturnType<typeof setTimeout>): void {
 export class DriverSupervisor {
   private readonly config: SuiteConfig;
   private readonly logger: Logger;
+  private readonly driverEnv: Record<string, string | undefined>;
   private readonly onStart?: (view: DriverView) => void;
   private readonly onStop?: (
     view: DriverView,
@@ -114,6 +116,7 @@ export class DriverSupervisor {
   constructor(options: SupervisorOptions) {
     this.config = options.config;
     this.logger = options.logger;
+    this.driverEnv = options.env ?? process.env;
     this.onStart = options.onStart;
     this.onStop = options.onStop;
     this.bunRuntime =
@@ -237,7 +240,7 @@ export class DriverSupervisor {
         cmd: [runtime, NODE_SCRIPT],
         cwd: NODE_DIR,
         env: {
-          ...process.env,
+          ...this.driverEnv,
           BLE_DRIVER: record.driver,
           NODE_ID: record.nodeId,
           WS_PORT: String(driverPort(this.config, record.driver)),

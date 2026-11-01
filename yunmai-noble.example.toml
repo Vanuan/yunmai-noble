@@ -1,0 +1,32 @@
+# yunmai-noble suite configuration.
+#
+# Copy to yunmai-noble.toml in the working directory, or pass
+# `bun run suite --config <path>` / set YUNMAI_CONFIG.
+# Environment variables with the same meaning override these values.
+# Relative paths resolve from the working directory.
+
+[historian]
+host = "0.0.0.0"
+port = 3000
+database_path = "./data/historian.sqlite"
+# cors_origin = "*"
+# sse_heartbeat_ms = 15000
+# reconnect_min_ms = 1000
+# reconnect_max_ms = 30000
+# upstream_urls = []          # extra remote nodes, not managed by the suite
+# device_id = "yunmai-noble"  # fallback id for legacy v0 frames
+
+[drivers]
+initial = ["dbus"]            # dbus, simulator, noble
+port_base = 8080              # dbus, +1 simulator, +2 noble
+node_id_prefix = "scale"      # device id is <prefix>-<driver>
+restart_ms = 2000             # restart delay after a crash; 0 disables
+
+[simulator]
+# name = "YUNMAI-SIM"
+# weight_kg = 7.5
+# steps = 8
+# interval_ms = 300
+# cycle_delay_ms = 5000
+# scan_delay_ms = 200
+# repeat = true

@@ -33,11 +33,13 @@ API and live relay. The desktop client is still missing. See
 - `packages/suite`: single executable that hosts the historian and UI, starts
   one node child per driver, restarts crashed drivers, and exposes
   `GET /api/suite` plus `POST /api/suite/drivers/{driver}/{start,stop}`.
+- `yunmai-noble.toml` configuration with `--config` / `YUNMAI_CONFIG` and
+  environment-variable overrides.
 - Multi-source ingest: the historian follows every configured upstream and
   reports `upstream` plus per-source `upstreams` in `/health`.
 - `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
   chart, and history; `bun run ui` proxies to the historian.
-- 69 Bun tests and `tsc --noEmit`.
+- 76 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
