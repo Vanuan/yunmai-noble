@@ -1,6 +1,6 @@
 'use strict';
 
-const { test } = require('node:test');
+const { test } = require('bun:test');
 const assert = require('node:assert/strict');
 
 const packets = require('../src/bluetooth/simulator/packets');

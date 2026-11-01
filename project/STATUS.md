@@ -6,8 +6,8 @@ _Last updated: 2026-11-01_
 
 `yunmai-noble` is a Node.js service that reads Yunmai Bluetooth LE scale
 measurements using `@abandonware/noble` and broadcasts them as JSON over
-WebSocket. It targets Node 22 and runs in Docker on a Raspberry Pi near the
-scale.
+WebSocket. It runs on Node 22 in Docker on a Raspberry Pi near the scale; Bun
+is the package manager, test runner, and TypeScript toolchain.
 
 The Web UI, Weight historian, and database from the
 [idea diagram](../README.md#idea) are not implemented. This repository
@@ -22,10 +22,13 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 | `src/bluetooth/` | Link factory for `noble` or the simulator |
 | `src/bluetooth/simulator/` | Simulated scale: link, GATT emulation, packet builders |
 | `src/yunmai/protocol.js` | Measuring and measured packet parsers |
+| `src/contract/websocket.ts` | WebSocket v1 zod schemas and TypeScript types |
 | `bin/simulate.js` | Interactive simulator harness |
-| `test/` | Protocol, link, simulator, and end-to-end WebSocket tests |
-| `package.json` | Node 22 engine, dependencies, and `start`, `simulate`, `test` scripts |
+| `test/` | Protocol, link, simulator, contract, and end-to-end WebSocket tests |
+| `package.json` | Dependencies and `start`, `dev`, `simulate`, `test`, `typecheck` scripts |
+| `tsconfig.json` | Strict TypeScript configuration |
 | `.nvmrc` | Pins Node 22 for `nvm use` |
+| `bun.lock` | Bun lockfile |
 | `Dockerfile`, `x86/Dockerfile`, `docker-compose.yml`, `run.sh` | Build and deployment |
 | `README.md`, `project/` | Documentation |
 
@@ -39,9 +42,12 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 - Runs without BLE hardware with `BLE_DRIVER=simulator`; the simulator
   advertises `YUNMAI-SIM`, emits measuring and measured packets, and responds
   to commands on `ffe4`.
-- `yarn simulate` drives the simulator interactively.
-- `yarn test` runs 18 tests with Node's built-in test runner, including an
-  end-to-end check that the app streams simulated weights over WebSocket.
+- `bun run simulate` drives the simulator interactively.
+- `bun test` runs 25 tests under Bun, including an end-to-end check that the
+  app streams simulated weights over WebSocket.
+- `bun run typecheck` checks the TypeScript contract with `tsc --noEmit`.
+- `src/contract/websocket.ts` defines the versioned WebSocket v1 contract in
+  zod; the format is specified in [WEBSOCKET.md](WEBSOCKET.md).
 
 ## Known issues
 
@@ -54,6 +60,9 @@ is tracked in [ROADMAP.md](ROADMAP.md).
   `WS_PORT`.
 - `Dockerfile` is dev-only; `run.sh` pulls a prebuilt image.
 - `x86/Dockerfile` duplicates the root `Dockerfile`.
+- Bun cannot load the native BLE transport; the real link must run on Node 22.
+- The node still emits the unversioned v0 WebSocket format; v1 migration is
+  pending.
 - No CI or linter.
 
 ## Gaps against the idea diagram
@@ -63,7 +72,7 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 | yunmai scales | Hardware or simulator |
 | Bluetooth link | Implemented |
 | yunmai-noble node | Partial |
-| Web socket | Broadcast-only |
+| Web socket | v1 contract defined; v0 still emitted |
 | Web UI | Missing |
 | RESTful API | Missing |
 | Weight historian | Missing |
@@ -71,10 +80,12 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## How to run
 
-- Local development requires Node 22 (`.nvmrc`).
+- Requirements: Node 22 (`.nvmrc`) and Bun 1.3+.
+- Install: `bun install`.
 - With BLE: `docker-compose up --build`.
-- Without BLE: `BLE_DRIVER=simulator yarn start`.
-- Interactive simulator: `yarn simulate`.
-- Tests: `yarn test`.
+- Without BLE: `BLE_DRIVER=simulator bun run dev`.
+- Interactive simulator: `bun run simulate`.
+- Tests: `bun test`.
+- Type checking: `bun run typecheck`.
 - Raspberry Pi: `run.sh` (pulls `vanuan/yunmai-noble-arm32`).
 - WebSocket endpoint: `ws://localhost:8080`.

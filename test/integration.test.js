@@ -1,6 +1,6 @@
 'use strict';
 
-const { test } = require('node:test');
+const { test } = require('bun:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
@@ -28,7 +28,7 @@ function openSocket(url, timeoutMs) {
       const socket = new WebSocket(url);
 
       const onError = function() {
-        socket.removeAllListeners();
+        socket.on('error', function() {});
         socket.terminate();
         if (Date.now() > deadline) {
           return reject(new Error('WebSocket did not open at ' + url));
@@ -65,7 +65,7 @@ function stopChild(child) {
   });
 }
 
-test('the app streams simulated measurements over WebSocket', { timeout: 15000 }, async function() {
+test('the app streams simulated measurements over WebSocket', async function() {
   const port = await freePort();
   const child = spawn(process.execPath, ['ble.js'], {
     cwd: ROOT,

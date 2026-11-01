@@ -28,7 +28,8 @@ $ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh
 
 ## Development (on any laptop that supports BLE)
 
-Requires Node 22 (see `.nvmrc`) or Docker.
+Requires Node 22 for the real BLE link (see `.nvmrc`) and Bun for package
+management, tests, and TypeScript.
 
 ```
 $ docker-compose up --build
@@ -54,7 +55,8 @@ Set `BLE_DRIVER=simulator` to replace the Bluetooth link with a simulated
 Yunmai scale:
 
 ```
-$ BLE_DRIVER=simulator yarn start
+$ bun install
+$ BLE_DRIVER=simulator bun run dev
 ```
 
 The simulator implements the same link API as `noble`, emits measuring and
@@ -62,5 +64,15 @@ measured packets, and responds to commands on characteristic `ffe4`. It is
 configured with `SIMULATOR_*` variables such as `SIMULATOR_WEIGHT_KG`,
 `SIMULATOR_STEPS`, and `SIMULATOR_INTERVAL_MS`.
 
-Run it interactively with `yarn simulate` and run tests with `yarn test`.
+Run it interactively with `bun run simulate`; run `bun test` and
+`bun run typecheck`.
+
+Bun runs the simulator and the test suite. The real BLE link still runs on Node
+22 because `@abandonware/bluetooth-hci-socket` is a native addon built for
+Node's ABI and cannot be loaded by Bun.
+
+## WebSocket contract
+
+The message format is specified in [`project/WEBSOCKET.md`](project/WEBSOCKET.md).
+TypeScript types and zod schemas live in `src/contract/websocket.ts`.
 

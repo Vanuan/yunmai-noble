@@ -2,8 +2,9 @@ version: '3'
 services:
   yunmai:
     build: .
-    command: sh -c 'yarn install && node ble.js'
+    command: sh -c 'bun install --frozen-lockfile && node ble.js'
     volumes:
       - .:/src
+      - /src/node_modules
     privileged: true
     network_mode: "host"
