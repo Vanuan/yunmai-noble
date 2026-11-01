@@ -20,13 +20,12 @@
 1. Validate the default D-Bus driver with a real scale on Linux/NixOS.
 2. Emit the v1 contract from the node.
 3. Add node configuration (`NODE_ID`, `HISTORIAN_URL`, name filter, UUIDs).
-4. Validate packet signatures and lengths; add the reconnect loop.
-5. Scaffold `packages/historian`: SQLite store, ingest, HTTP JSON API, and
-   served UI assets.
+5. Validate packet signatures and lengths; add the reconnect loop.
 6. Build the browser UI (`packages/ui`) and the Rust/GPUI desktop client
    (`apps/desktop`) against the HTTP surface and live relay.
 7. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
-   Assistant, NixOS module, Ubuntu service + desktop `.deb`, and cloud ingest.
+   Assistant, NixOS module, Ubuntu service + desktop `.deb`, cloud ingest, and
+   historian auth.
 8. Add CI.
 
 ## Open questions

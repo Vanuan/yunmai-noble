@@ -50,6 +50,16 @@ BLE_DRIVER=simulator bun run dev
 bun run simulate
 ```
 
+Historian, in a second terminal (accepts v1 and legacy v0 frames):
+
+```sh
+DATABASE_PATH=./data/historian.sqlite \
+YUNMAI_WS_URL=ws://127.0.0.1:8080 \
+bun run historian
+```
+
+Open `http://127.0.0.1:3000` for the built-in status page.
+
 ## BLE drivers
 
 - `dbus` (default): needs BlueZ and the system D-Bus socket. On NixOS, enable
@@ -85,7 +95,7 @@ Node 22 and npm so they work on arm32; Bun has no arm32 image.
 ```
 packages/node       BLE node, simulator, and tests
 packages/contract   WebSocket v1 schemas and types
-packages/historian  planned
+packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
 packages/ui         planned browser UI
 apps/desktop        planned Rust/GPUI desktop client
 project/            design and status documents

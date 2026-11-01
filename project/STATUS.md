@@ -9,7 +9,8 @@ link (`dbus` default, `noble` legacy, `simulator`) and broadcasts JSON over
 WebSocket. The node runs on Node 22; Bun handles packages, tests, and
 TypeScript. Docker is only for Raspberry Pi deployment.
 
-The historian, persistence, and HTTP/HTML/API surface are not implemented. See
+The historian is implemented with SQLite, WebSocket ingest, HTTP JSON APIs, and
+an SSE relay. Browser and desktop clients are still missing. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Implemented
@@ -22,15 +23,19 @@ The historian, persistence, and HTTP/HTML/API surface are not implemented. See
 - Legacy `noble` driver is optional; a separate legacy Docker image keeps the
   native HCI path.
 - WebSocket v1 zod schemas in `packages/contract`; the node still emits v0.
-- 33 Bun tests and `tsc --noEmit`.
+- `packages/historian`: SQLite store, v1/v0 ingest, `/health`,
+  `/api/measurements`, `/api/measurements/latest`, `/api/devices`, `/api/events`
+  (SSE), and a placeholder status page.
+- 46 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
 ## Not implemented
 
-- Persistence, historian, REST API, and UI client.
-- v1 emission from the node.
+- Browser UI and Rust/GPUI desktop client.
+- v1 emission from the node (the historian has a transitional v0 adapter).
 - Reconnect loop, packet validation, and node configuration (`NODE_ID`, etc.).
+- Cloud ingest, historian auth, and deployment packaging.
 - CI and linting.
 
 ## Known issues
@@ -42,6 +47,8 @@ The historian, persistence, and HTTP/HTML/API surface are not implemented. See
   AppArmor/SELinux policy may also need to allow D-Bus. The legacy image needs
   privileged HCI access.
 - `node-ble`/`dbus-next` report transitive npm audit findings.
+- The historian's v0 adapter and built-in status page are transitional.
+- SQLite is single-instance; cloud deployment will need Postgres.
 - Disconnect calls `process.exit(0)`; the device-name filter and UUIDs are
   hardcoded.
 - No CI or linter.

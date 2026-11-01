@@ -5,6 +5,7 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 COPY packages/node/package.json packages/node/
 COPY packages/contract/package.json packages/contract/
+COPY packages/historian/package.json packages/historian/
 RUN npm ci --omit=dev
 
 COPY packages ./packages

@@ -9,6 +9,9 @@ service that owns the persistence and HTTP/HTML/API boundaries from
 
 Not in scope: BLE access, UI assets, accounts, or authentication.
 
+Implemented in `packages/historian` with SQLite, v1/v0 ingest, HTTP APIs, and
+SSE. The built-in status page is a placeholder until the real clients land.
+
 ## Flow
 
 ```mermaid
@@ -19,8 +22,8 @@ flowchart LR
     historian -->|"SSE live"| client
 ```
 
-The node still emits v0; adapt frames using the mapping in
-[WEBSOCKET.md](WEBSOCKET.md) until the v1 emitter lands.
+The node still emits v0; the historian includes a transitional adapter using
+the mapping in [WEBSOCKET.md](WEBSOCKET.md) until the v1 emitter lands.
 
 ## Data model
 
