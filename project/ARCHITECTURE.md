@@ -2,8 +2,6 @@
 
 ## Black-box view
 
-The system has three boundaries with the outside world:
-
 ```mermaid
 flowchart LR
     os["Operating system / BLE stack"] -->|"D-Bus or HCI"| ble["BLE port"]
@@ -16,118 +14,73 @@ flowchart LR
     http --> systems["Other systems"]
 ```
 
-Everything else is internal: the node-to-historian WebSocket contract, packet
-parsing, deduplication, and storage queries.
+The three external boundaries are BLE, persistence, and HTTP/HTML/API. The
+node-to-historian WebSocket contract, packet parsing, deduplication, and
+storage queries are internal.
 
-## The three boundaries
+## Boundaries
 
-| Boundary | Direction | Adapters | Default | Failure behavior |
-| --- | --- | --- | --- | --- |
-| BLE | OS → system | `dbus` (BlueZ D-Bus), `noble` (raw HCI), `simulator` | `noble` today; `dbus` target | Wait for adapter/device; expose state; never import OS-specific code elsewhere |
-| Persistence | System → storage | `bun:sqlite` file, in-memory test store, remote DB later | SQLite file | Surface storage failures; do not lose the transport |
-| HTTP/HTML/API | System → humans and other systems | JSON REST, static HTML, optional SSE/WebSocket live relay | Historian server | Independent of BLE and storage implementations |
+| Boundary | Adapters | Default | Rule |
+| --- | --- | --- | --- |
+| BLE | `dbus` (BlueZ), `noble` (legacy HCI), `simulator` | `dbus` | Only BLE adapters touch the OS stack |
+| Persistence | `bun:sqlite` file, in-memory tests, remote DB later | SQLite | Only the store adapter touches the database |
+| HTTP/HTML/API | JSON REST, static HTML, optional SSE/WebSocket relay | Historian server | Only the HTTP layer touches clients |
 
-Only the adapters may depend on OS, database, or HTTP specifics. The domain
-(packet parsing, measurement validation, deduplication) uses the shared
-contract and stays portable.
-
-## Package responsibilities
+## Packages
 
 | Package | Owns | Must not contain |
 | --- | --- | --- |
-| `packages/contract` | v1 WebSocket messages and shared schemas/types | BLE, database, or HTTP code |
-| `packages/node` | BLE port, packet normalization, v1 publishing | Persistence or UI code |
-| `packages/historian` | Ingest, persistence port, HTTP API, serving the UI | BLE/HCI code |
-| `packages/ui` | HTML/CSS/JS client assets | Direct BLE or database access |
-
-The WebSocket link between node and historian is an internal interface, not one
-of the three external boundaries. It can later be replaced by IPC if both run
-on the same host, without changing the BLE, persistence, or HTTP surfaces.
-
-## Data flow
-
-1. The BLE adapter receives notifications and converts them into the v1
-   measurement messages defined in [WEBSOCKET.md](WEBSOCKET.md).
-2. The node publishes those messages over WebSocket.
-3. The historian validates them with `@yunmai-noble/contract`, deduplicates
-   completed measurements, and writes through the persistence port.
-4. The HTTP surface serves JSON queries and the HTML UI. Live data may come
-   from the node's WebSocket directly or be relayed by the historian; that
-   decision is still open.
+| `packages/contract` | v1 WebSocket schemas and types | BLE, DB, or HTTP code |
+| `packages/node` | BLE port, packet normalization, v1 publishing | Persistence or UI |
+| `packages/historian` | Ingest, store port, HTTP API, served UI assets | BLE/HCI code |
+| `packages/ui` | HTML/CSS/JS assets | Direct BLE or DB access |
 
 ## Ports
 
-### BLE port
+- **BLE:** selected with `BLE_DRIVER` (`dbus` default, `noble` legacy,
+  `simulator`). Exposes state, discovery, connect/disconnect, GATT access,
+  notifications, and writes. `dbus` uses BlueZ over the system D-Bus socket
+  (host security policy must allow access); `noble` needs Node 22 and HCI
+  adapter access.
+- **Persistence:** `MeasurementStore` with idempotent `insert`, `list`,
+  `latest`, and `devices`. See [HISTORIAN.md](HISTORIAN.md).
+- **HTTP/HTML/API:** one server for JSON endpoints, static UI, health, CORS,
+  and an optional live relay. Any client can use the JSON API.
 
-Selected with `BLE_DRIVER` (`noble`, `dbus`, `simulator`). The port exposes
-adapter state, discovery, connect/disconnect, GATT service and characteristic
-access, notifications, and writes. See
-[BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md).
+## Data flow
 
-### Persistence port
+1. The BLE adapter turns notifications into v1 measurement messages.
+2. The node publishes them over WebSocket.
+3. The historian validates with `@yunmai-noble/contract`, deduplicates, and
+   stores them.
+4. The HTTP surface serves history and the UI; live data comes from the node
+   or an optional historian relay.
 
-A `MeasurementStore` interface with:
-
-- idempotent `insert(measurement)`
-- `list({ from, to, userId, limit, before })`
-- `latest({ userId })`
-- `devices()`
-
-SQLite via `bun:sqlite` is the first adapter. A remote database adapter can be
-added without touching ingestion or HTTP code. See
-[HISTORIAN.md](HISTORIAN.md).
-
-### HTTP/HTML/API port
-
-One HTTP server owns:
-
-- `GET /api/...` JSON endpoints for other systems
-- `GET /` static HTML/CSS/JS for humans
-- optional live relay over SSE or WebSocket
-- health and CORS behavior
-
-UI clients are not required to be web apps; any client can consume the JSON
-API. The default deployment serves the bundled UI from the historian, but the
-same assets can be hosted separately.
-
-## Configuration boundaries
+## Configuration
 
 | Variable | Boundary | Purpose |
 | --- | --- | --- |
 | `BLE_DRIVER` | BLE | `noble`, `dbus`, or `simulator` |
-| `DBUS_SYSTEM_BUS_ADDRESS` | BLE | System D-Bus socket for the `dbus` driver |
+| `DBUS_SYSTEM_BUS_ADDRESS` | BLE | D-Bus socket for `dbus` |
 | `SIMULATOR_*` | BLE | Simulated scale behavior |
 | `DATABASE_PATH` / `DATABASE_URL` | Persistence | Storage location |
-| `HISTORIAN_PORT` / `HISTORIAN_HOST` | HTTP | API and UI bind address |
-| `CORS_ORIGIN` | HTTP | Allowed UI/API client origins |
+| `HISTORIAN_PORT`, `HISTORIAN_HOST` | HTTP | Bind address |
+| `CORS_ORIGIN` | HTTP | Allowed client origins |
 | `YUNMAI_WS_URL` | Internal | Node stream consumed by the historian |
-| `NODE_ID` | Contract | Device identity in v1 messages |
+| `NODE_ID` | Contract | Device identity in v1 |
 
-## Testing seams
+## Testing
 
-- **BLE:** simulator for end-to-end runs, injected fake `node-ble` client for
-  driver tests, real hardware only for validation.
-- **Persistence:** in-memory store for historian tests, temporary SQLite file
-  for query tests.
-- **HTTP:** start the server on an ephemeral port and call it with `fetch`.
-- **Contract:** zod schema tests.
-- **System:** node simulator + historian + a fake UI client.
+- BLE: simulator for end-to-end runs, fake `node-ble` client for driver tests.
+- Persistence: in-memory store and temporary SQLite files.
+- HTTP: ephemeral server plus `fetch`.
+- Contract: zod schema tests.
 
 No test should require a Bluetooth adapter or an external database.
 
-## Deployment topologies
+## Deployment
 
-- **Single host / Pi:** node and historian together; SQLite file; D-Bus or HCI
-  BLE; one HTTP port.
-- **Split:** node at the edge publishes the v1 stream; historian and database
-  run remotely; the historian serves the API and UI.
-- **UI elsewhere:** the historian exposes JSON only and a web or desktop client
-  is deployed independently.
-
-## Current state
-
-- BLE port: `noble` implemented; `dbus` scaffold implemented; `simulator`
-  implemented.
-- Persistence: designed, not implemented.
-- HTTP/HTML/API: designed, not implemented.
-- v1 contract: defined; the node still emits v0.
+- **Single host / Pi:** node and historian together, SQLite file, one HTTP port.
+- **Split:** node at the edge; historian and database remote.
+- **UI elsewhere:** historian exposes JSON; any web or desktop client is
+  deployed independently.

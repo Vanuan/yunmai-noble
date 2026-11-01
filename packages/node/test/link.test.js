@@ -47,6 +47,10 @@ function disconnect(peripheral) {
   });
 }
 
+test('defaults to the dbus driver', function() {
+  assert.equal(bluetooth.DEFAULT_DRIVER, 'dbus');
+});
+
 test('the link factory builds a simulator and rejects unknown drivers', function() {
   const link = bluetooth.createLink({
     driver: 'simulator',

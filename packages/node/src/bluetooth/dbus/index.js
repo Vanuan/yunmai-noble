@@ -6,6 +6,7 @@ const DEFAULT_NAME_FILTER = 'YUNMAI';
 const DEFAULT_SCAN_INTERVAL_MS = 1000;
 const DEFAULT_CONNECT_POLL_MS = 1000;
 const UUID_SUFFIX = '-0000-1000-8000-00805f9b34fb';
+const DBUS_INIT_ERROR = /DBusError|org\.freedesktop\.DBus|AppArmor|SELinux|No available adapters|ECONNREFUSED|ENOENT.*dbus/i;
 
 function expandUuid(uuid) {
   const value = String(uuid).toLowerCase();
@@ -305,6 +306,8 @@ class DbusLink extends EventEmitter {
     super();
     options = options || {};
 
+    const self = this;
+
     this._logger = options.logger || console;
     this._nameFilter = String(
       options.nameFilter || process.env.YUNMAI_DEVICE_NAME || DEFAULT_NAME_FILTER
@@ -322,6 +325,21 @@ class DbusLink extends EventEmitter {
     this._seen = new Set();
     this._peripherals = [];
     this._destroyed = false;
+    this._lastState = null;
+
+    // dbus-next rethrows a failed D-Bus Hello call after emitting it on the
+    // bus. Keep that dependency bug from crashing the whole node; unrelated
+    // unhandled rejections keep the default behavior.
+    this._onUnhandledRejection = function(reason) {
+      const message = reason && reason.message ? reason.message : String(reason);
+      if (!DBUS_INIT_ERROR.test(message)) {
+        process.nextTick(function() { throw reason; });
+        return;
+      }
+      self._logger.error('dbus: ' + message);
+      self._emitState('unsupported');
+    };
+    process.on('unhandledRejection', this._onUnhandledRejection);
 
     this._init();
   }
@@ -333,6 +351,14 @@ class DbusLink extends EventEmitter {
         const session = self._createBluetooth();
         self._bluetooth = session.bluetooth;
         self._destroyBus = session.destroy;
+
+        if (self._bluetooth.dbus && self._bluetooth.dbus.on) {
+          self._bluetooth.dbus.on('error', function(error) {
+            self._logger.error('dbus: bus error: ' + (error.message || error));
+            self._emitState('unsupported');
+          });
+        }
+
         return self._bluetooth.defaultAdapter();
       })
       .then(function(adapter) {
@@ -340,15 +366,19 @@ class DbusLink extends EventEmitter {
         return adapter.isPowered()
           .catch(function() { return false; })
           .then(function(powered) {
-            if (!self._destroyed) {
-              self.emit('stateChange', powered ? 'poweredOn' : 'poweredOff');
-            }
+            self._emitState(powered ? 'poweredOn' : 'poweredOff');
           });
       })
       .catch(function(error) {
         self._logger.error('dbus: Bluetooth initialization failed: ' + error.message);
-        if (!self._destroyed) self.emit('stateChange', 'unsupported');
+        self._emitState('unsupported');
       });
+  }
+
+  _emitState(state) {
+    if (this._destroyed || this._lastState === state) return;
+    this._lastState = state;
+    this.emit('stateChange', state);
   }
 
   startScanning() {
@@ -468,6 +498,8 @@ class DbusLink extends EventEmitter {
   destroy() {
     this._destroyed = true;
     this.stopScanning();
+    process.removeListener('unhandledRejection', this._onUnhandledRejection);
+    this._lastState = null;
 
     this._peripherals.forEach(function(peripheral) {
       peripheral.dispose();

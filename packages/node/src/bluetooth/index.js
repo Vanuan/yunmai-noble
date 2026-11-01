@@ -30,11 +30,14 @@ function simulatorOptionsFromEnv(env) {
   return options;
 }
 
-// Returns a noble-compatible Bluetooth link. The simulator implements the same
-// events and GATT method signatures, so the rest of the app does not change.
+const DEFAULT_DRIVER = 'dbus';
+
+// Returns a noble-compatible Bluetooth link. The dbus and simulator drivers
+// implement the same events and GATT method signatures, so the rest of the app
+// does not change.
 function createLink(options) {
   options = options || {};
-  const driver = options.driver || process.env.BLE_DRIVER || 'noble';
+  const driver = options.driver || process.env.BLE_DRIVER || DEFAULT_DRIVER;
 
   if (driver === 'noble') {
     return require('@abandonware/noble');
@@ -59,6 +62,7 @@ function createLink(options) {
 }
 
 module.exports = {
+  DEFAULT_DRIVER: DEFAULT_DRIVER,
   createLink: createLink,
   simulatorOptionsFromEnv: simulatorOptionsFromEnv
 };

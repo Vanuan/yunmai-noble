@@ -1,94 +1,62 @@
 # WebSocket message contract
 
-Status: draft v1. The zod schemas and tests exist; the node still emits the
-v0 format described under [Migrating from v0](#migrating-from-v0).
-
-Source of truth:
+Status: draft v1. Schemas and tests exist; the node still emits v0 (mapping
+below). Source of truth:
 [`packages/contract/src/websocket.ts`](../packages/contract/src/websocket.ts).
 
 ## Transport
 
-- WebSocket, text frames, UTF-8.
-- One JSON object per frame; no batching or newline framing.
-- Server to client only. v1 has no client application messages; WebSocket
-  ping/pong frames are handled by the WebSocket layer.
-- Recommended maximum frame size: 64 KiB. Measurement frames are under 1 KiB.
-- Endpoint: `ws://<node>:8080`, path and query string are ignored.
+- WebSocket text frames, UTF-8, one JSON object per frame.
+- Server to client only; v1 has no client application messages.
+- Recommended maximum frame size: 64 KiB.
+- Endpoint: `ws://<node>:8080`; path and query are ignored.
 
 ## Envelope
 
-Every message uses the same envelope:
+| Field | Type | Notes |
+| --- | --- | --- |
+| `v` | literal `1` | Protocol version |
+| `type` | string | Message discriminator |
+| `deviceId` | non-empty string | Stable node id |
+| `sentAt` | ISO 8601 UTC with `Z` | Node clock |
+| `payload` | object | Shape depends on `type` |
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `v` | literal `1` | yes | Protocol version |
-| `type` | string | yes | Discriminates the payload |
-| `deviceId` | string, non-empty | yes | Stable node id, configured by the node |
-| `sentAt` | ISO 8601 UTC with `Z` | yes | Node clock when the frame was sent |
-| `payload` | object | yes | Shape depends on `type` |
+Clients ignore unknown fields, message types, and unsupported versions.
 
-Clients must ignore unknown fields and unknown message types. New optional
-fields and new message types may be added within v1.
-
-## Message types
+## Messages
 
 ### `hello`
 
-Sent immediately after the connection opens, before any measurement.
+Sent first on every connection.
 
 ```json
-{
-  "v": 1,
-  "type": "hello",
-  "deviceId": "pi-scale-1",
+{ "v": 1, "type": "hello", "deviceId": "pi-scale-1",
   "sentAt": "2026-11-01T13:35:25.400Z",
-  "payload": {
-    "capabilities": [
-      "measurement.measuring",
-      "measurement.completed",
-      "status"
-    ]
-  }
-}
+  "payload": { "capabilities": ["measurement.measuring",
+    "measurement.completed", "status"] } }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `payload.capabilities` | string[] | Message types this node may emit |
+`capabilities` lists message types the node may emit.
 
 ### `measurement.measuring`
 
-A live progress value while a weighing is in progress.
+Live progress; not persisted.
 
 ```json
-{
-  "v": 1,
-  "type": "measurement.measuring",
-  "deviceId": "pi-scale-1",
+{ "v": 1, "type": "measurement.measuring", "deviceId": "pi-scale-1",
   "sentAt": "2026-11-01T13:35:26.100Z",
-  "payload": {
-    "measuredAt": "2026-11-01T13:35:26.000Z",
-    "weight": 741
-  }
-}
+  "payload": { "measuredAt": "2026-11-01T13:35:26.000Z", "weight": 741 } }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `payload.measuredAt` | ISO 8601 UTC | Scale timestamp, second precision |
-| `payload.weight` | integer `0..65535` | Hundredths of a kilogram (`741` = 7.41 kg) |
-
-`measurement.measuring` is transient and must not be persisted.
+`weight` is an integer in hundredths of a kilogram. `measuredAt` comes from the
+scale clock at second precision.
 
 ### `measurement.completed`
 
-A completed weighing. Consumers persist these.
+The only durable message type.
 
 ```json
-{
-  "v": 1,
-  "type": "measurement.completed",
-  "deviceId": "pi-scale-1",
+{ "v": 1, "type": "measurement.completed", "deviceId": "pi-scale-1",
   "sentAt": "2026-11-01T13:35:27.120Z",
   "payload": {
     "measuredAt": "2026-11-01T13:35:27.000Z",
@@ -98,160 +66,91 @@ A completed weighing. Consumers persist these.
     "fatPercentage": 201,
     "historical": false,
     "firmwareVersion": 1
-  }
-}
+  } }
 ```
 
-| Field | Type | Notes |
+| Field | Range | Notes |
 | --- | --- | --- |
-| `payload.measuredAt` | ISO 8601 UTC | Scale timestamp, second precision |
-| `payload.userId` | integer `0..4294967295` | Scale-local user slot, not a global account |
-| `payload.weight` | integer `0..65535` | Hundredths of a kilogram |
-| `payload.resistance` | integer `0..65535` | Raw device value, pass through |
-| `payload.fatPercentage` | integer `0..65535` | Raw device value, pass through |
-| `payload.historical` | boolean | `true` for stored measurements replayed by the scale |
-| `payload.firmwareVersion` | integer `0..255` | Scale firmware reported in the packet |
+| `measuredAt` | ISO 8601 UTC | Scale timestamp |
+| `userId` | `0..4294967295` | Scale-local user slot |
+| `weight` | `0..65535` | Hundredths of a kilogram |
+| `resistance` | `0..65535` | Raw device value |
+| `fatPercentage` | `0..65535` | Raw device value |
+| `historical` | boolean | Stored measurement replayed by the scale |
+| `firmwareVersion` | `0..255` | Scale firmware |
 
-Measurements may be repeated: a live measurement can later be replayed as a
-historical one. Consumers deduplicate completed measurements by
-`(deviceId, measuredAt, userId, weight)`.
+Consumers deduplicate by `(deviceId, measuredAt, userId, weight)`, since a live
+measurement may later be replayed as historical.
 
 ### `status`
 
-Bluetooth and connection state changes.
-
 ```json
-{
-  "v": 1,
-  "type": "status",
-  "deviceId": "pi-scale-1",
+{ "v": 1, "type": "status", "deviceId": "pi-scale-1",
   "sentAt": "2026-11-01T13:35:25.500Z",
-  "payload": {
-    "bluetooth": "poweredOn",
-    "scanning": false,
-    "connected": true,
-    "peripheralName": "YUNMAI-SIM"
-  }
-}
+  "payload": { "bluetooth": "poweredOn", "scanning": false,
+    "connected": true, "peripheralName": "YUNMAI-SIM" } }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `payload.bluetooth` | enum | `poweredOn`, `poweredOff`, `resetting`, `unauthorized`, `unsupported`, `unknown` |
-| `payload.scanning` | boolean | Whether discovery is active |
-| `payload.connected` | boolean | Whether a scale is connected |
-| `payload.peripheralName` | string or null | Advertised name when connected |
+`bluetooth` is one of `poweredOn`, `poweredOff`, `resetting`, `unauthorized`,
+`unsupported`, `unknown`. `peripheralName` may be `null`.
 
 ### `error`
 
-A non-fatal problem the node wants clients to see.
-
 ```json
-{
-  "v": 1,
-  "type": "error",
-  "deviceId": "pi-scale-1",
+{ "v": 1, "type": "error", "deviceId": "pi-scale-1",
   "sentAt": "2026-11-01T13:35:28.000Z",
-  "payload": {
-    "code": "unsupported_packet",
-    "message": "Packet type 9 is not supported"
-  }
-}
+  "payload": { "code": "unsupported_packet", "message": "Packet type 9" } }
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `payload.code` | string, non-empty | Stable machine-readable code |
-| `payload.message` | string | Human-readable detail |
-
-An `error` does not close the connection.
+Errors are non-fatal and do not close the connection.
 
 ## Invariants
 
-- `weight` is always an integer in hundredths of a kilogram. Clients divide by
-  100 for display.
+- `weight` is always an integer in hundredths of a kilogram.
 - Timestamps are ISO 8601 UTC with a `Z` suffix; fractional seconds are
   optional.
-- `measurement.completed` is the only durable message type.
-- `hello` is the first message on a connection.
-- Messages are delivered in emission order per connection.
-- Binary BLE packets are never forwarded; all values are JSON numbers,
-  strings, booleans, or null.
-- A client that does not understand `v` or a `type` must ignore that frame and
-  continue.
+- `hello` is the first message; messages keep emission order per connection.
+- Only `measurement.completed` is durable.
+- Binary BLE packets are never forwarded; values are JSON scalars.
+- Unknown fields and message types are ignored.
 
 ## Versioning
 
-- `v` is bumped only for breaking changes.
-- Additive fields and new message types keep the current `v`.
-- When `v` changes, the server may keep emitting the previous version during a
-  migration window; clients select the highest version they support from
-  `hello`.
-- v1 does not negotiate per-client versions; the node emits one version.
+- `v` changes only for breaking changes.
+- Additive fields and new message types stay within the current version.
+- v1 does not negotiate per-client versions.
 
 ## Migrating from v0
-
-The current node emits unversioned objects:
-
-```json
-{ "firmwareVersion": 1, "packetType": "measuring", "data": { "date": 1761994526, "weight": 741 } }
-{ "firmwareVersion": 1, "packetType": "measured", "data": {
-  "historicalInfo": 1, "date": 1761994526, "userId": 1,
-  "weight": 750, "resistance": 480, "fatPercentage": 201
-} }
-```
 
 | v0 | v1 |
 | --- | --- |
 | `packetType: "measuring"` | `type: "measurement.measuring"` |
 | `packetType: "measured"` | `type: "measurement.completed"` |
-| `data.date` (epoch seconds) | `payload.measuredAt` = `new Date(date * 1000).toISOString()` |
+| `data.date` (epoch seconds) | `payload.measuredAt` (`date * 1000` ISO) |
 | `data.userId`, `data.weight`, `data.resistance`, `data.fatPercentage` | Same names under `payload` |
 | `data.historicalInfo === 1` | `payload.historical` |
 | `firmwareVersion` | `payload.firmwareVersion` |
-| `packetType: "unknown"` | `type: "error"` with `code: "unsupported_packet"` |
-| missing | `v`, `deviceId`, `sentAt` from node configuration and send time |
+| `packetType: "unknown"` | `type: "error"`, `code: "unsupported_packet"` |
+| missing | `v`, `deviceId`, `sentAt` |
 
-Node migration is tracked in [ROADMAP.md](ROADMAP.md). Consumers built against
-v1 must not parse v0 frames without an adapter.
-
-## Using the schemas
+## Validation
 
 ```ts
 import { parseServerMessage } from "@yunmai-noble/contract";
 
 const message = parseServerMessage(JSON.parse(raw));
-
-switch (message.type) {
-  case "measurement.completed":
-    // message.payload is fully typed and validated
-    break;
-  case "measurement.measuring":
-  case "status":
-  case "hello":
-  case "error":
-    break;
+if (message.type === "measurement.completed") {
+  // message.payload is validated and typed
 }
 ```
 
-`parseServerMessage` throws a `ZodError` on invalid input.
-`safeParseServerMessage` returns `{ success, data | error }` for untrusted
-streams.
-
-Zod strips unknown object keys by default. Consumers that need forward
-compatibility for new fields should read them from the raw frame as well.
+`parseServerMessage` throws `ZodError`; `safeParseServerMessage` returns a
+result object. Zod strips unknown keys by default.
 
 ## Security and limits
 
-- v1 has no authentication or authorization. Bind the node and historian to a
-  trusted network, or put them behind a reverse proxy or VPN.
+- v1 has no authentication; bind to a trusted network or use a VPN.
 - `deviceId` is an identifier, not a credential.
-- The node should enforce a `maxPayload` of 64 KiB and close clients that do
-  not read fast enough; neither is implemented yet.
-- Measurement frames contain no personal data beyond the scale-local
-  `userId`.
-
-## Testing
-
-`test/contract.test.ts` covers valid messages for every type, envelope and
-payload rejections, and the discriminated union. Run it with `bun test`.
+- The node should enforce the 64 KiB limit and drop slow clients; not
+  implemented yet.
+- No personal data beyond the scale-local `userId`.

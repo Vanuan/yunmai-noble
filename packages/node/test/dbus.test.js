@@ -392,6 +392,31 @@ test('emits disconnect when the underlying device drops', async function() {
   }
 });
 
+test('reports unsupported when the D-Bus bus emits an error', async function() {
+  const bus = new EventEmitter();
+  const link = dbus.createLink({
+    createBluetooth: function() {
+      return {
+        bluetooth: {
+          dbus: bus,
+          defaultAdapter: function() { return new Promise(function() {}); }
+        },
+        destroy: function() {}
+      };
+    },
+    logger: SILENT_LOGGER
+  });
+
+  try {
+    await delay(0);
+    const stateChange = waitForState(link, 'unsupported');
+    bus.emit('error', new Error('access denied'));
+    await stateChange;
+  } finally {
+    link.destroy();
+  }
+});
+
 test('reports unsupported when the D-Bus adapter is unavailable', async function() {
   const link = dbus.createLink({
     createBluetooth: function() {

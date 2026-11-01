@@ -12,9 +12,11 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@abandonware/noble": "^1.9.2-26",
     "binary-parser": "^2.3.0",
     "node-ble": "^1.13.0",
     "ws": "^8.22.1"
+  },
+  "optionalDependencies": {
+    "@abandonware/noble": "^1.9.2-26"
   }
 }

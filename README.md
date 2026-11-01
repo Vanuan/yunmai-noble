@@ -1,6 +1,6 @@
 # yunmai-noble
 
-Yunmai scales BLE node, simulator, and weight historian design.
+Yunmai scales BLE node, simulator, and weight historian.
 
 ## Idea
 
@@ -17,97 +17,82 @@ flowchart TD
     node -->|"WebSocket live"| client
 ```
 
-The UI client may be a web app, a desktop app (for example GPUI), or any other
-consumer. The historian is a background Bun service that stores history and
-serves the REST API.
+The system has three external boundaries: BLE (D-Bus/HCI), persistence (file or
+remote database), and HTTP/HTML/API. Only adapters touch OS, database, or HTTP
+specifics. See [Architecture](project/ARCHITECTURE.md).
 
-## Architecture
+## Quick start
 
-The system is organized around three black-box boundaries: the BLE hardware
-interface (D-Bus/HCI), persistence (file or remote database), and the
-HTTP/HTML/API surface used by humans and other systems. See
-[`project/ARCHITECTURE.md`](project/ARCHITECTURE.md) for the port/adapter view
-and package responsibilities.
+Requires Node 22 (`.nvmrc`) and Bun 1.3+.
+
+```sh
+bun install
+bun test
+bun run typecheck
+```
+
+Real scale, default BlueZ D-Bus driver:
+
+```sh
+bun run start
+```
+
+Legacy native `noble` driver on Node 22:
+
+```sh
+BLE_DRIVER=noble bun run start
+```
+
+Simulator, no hardware:
+
+```sh
+BLE_DRIVER=simulator bun run dev
+bun run simulate
+```
+
+## BLE drivers
+
+- `dbus` (default): needs BlueZ and the system D-Bus socket. On NixOS, enable
+  `hardware.bluetooth.enable` and `hardware.bluetooth.powerOnBoot`; set
+  `DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket` if
+  `/var/run` is not available.
+- `noble` (legacy): native HCI; Node 22 only, with adapter access.
+- `simulator`: no hardware.
+
+On hosts with AppArmor or SELinux confining Docker, allow the container to use
+the system D-Bus socket, or use the legacy noble image.
+
+## Raspberry Pi
+
+```sh
+./run.sh          # default D-Bus image
+./run.sh noble    # legacy native HCI image
+```
+
+Or run the installer remotely:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh | sh
+```
+
+The D-Bus image mounts `/run/dbus/system_bus_socket` and does not need
+privileged networking, though the host security policy must allow D-Bus
+access. The legacy image uses `--privileged` and host networking. Both use
+Node 22 and npm so they work on arm32; Bun has no arm32 image.
 
 ## Repository layout
 
-| Path | Purpose |
-| --- | --- |
-| `packages/node/` | BLE node, simulator, and node tests |
-| `packages/contract/` | Shared WebSocket v1 zod schemas and types |
-| `packages/historian/`, `packages/ui/` | Planned historian and UI clients |
-| `project/` | Design and status documents |
-
-## Install on Raspberry Pi
-
-1. Install Docker
-2. Run the installer; it builds the image from the current `Dockerfile` and
-   starts the container:
 ```
-$ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh | sh
+packages/node       BLE node, simulator, and tests
+packages/contract   WebSocket v1 schemas and types
+packages/historian  planned
+packages/ui         planned
+project/            design and status documents
 ```
 
-The deployment image uses Node 22 and npm so it builds on 32-bit and 64-bit
-ARM. Bun is used for development and tests, but has no arm32 image.
+## Documentation
 
-## Development (on any laptop that supports BLE)
-
-Requires Node 22 for the real BLE link (see `.nvmrc`) and Bun 1.3+ for package
-management, tests, and TypeScript. Local development does not use Docker.
-
-```
-$ bun install
-$ bun run start
-Bluetooth poweredOn
-Looking for peripheral...
-Yunmai scales detected
-Waiting for weighting...
-[Sun Nov 01 2026 15:35:16 GMT+0200] 7.9 kg
-[Sun Nov 01 2026 15:35:16 GMT+0200] 7.7 kg
-[Sun Nov 01 2026 15:35:16 GMT+0200] 7.5 kg
-```
-
-## Simulator (no BLE hardware)
-
-Set `BLE_DRIVER=simulator` to replace the Bluetooth link with a simulated
-Yunmai scale:
-
-```
-$ bun install
-$ BLE_DRIVER=simulator bun run dev
-```
-
-The simulator implements the same link API as `noble`, emits measuring and
-measured packets, and responds to commands on characteristic `ffe4`. It is
-configured with `SIMULATOR_*` variables such as `SIMULATOR_WEIGHT_KG`,
-`SIMULATOR_STEPS`, and `SIMULATOR_INTERVAL_MS`.
-
-Run it interactively with `bun run simulate`; run `bun test` and
-`bun run typecheck`.
-
-Bun runs the simulator and the test suite. The real BLE link still runs on Node
-22 because `@abandonware/bluetooth-hci-socket` is a native addon built for
-Node's ABI and cannot be loaded by Bun.
-
-## WebSocket contract
-
-The message format is specified in [`project/WEBSOCKET.md`](project/WEBSOCKET.md).
-TypeScript types and zod schemas live in
-`packages/contract/src/websocket.ts`.
-
-## BLE transport
-
-The link is selected with `BLE_DRIVER`: `noble` (native HCI, Node 22 only,
-default), `dbus` (pure-JS BlueZ, scaffold available, Bun-compatible), or
-`simulator` (no hardware).
-
-The `dbus` driver needs BlueZ running on the host and access to the system
-D-Bus socket:
-
-```
-$ BLE_DRIVER=dbus bun run dev
-```
-
-See [`project/BLE-TRANSPORT-MIGRATION.md`](project/BLE-TRANSPORT-MIGRATION.md)
-for requirements and the migration plan.
-
+- [Status](project/STATUS.md), [Roadmap](project/ROADMAP.md),
+  [Architecture](project/ARCHITECTURE.md)
+- [WebSocket contract](project/WEBSOCKET.md)
+- [Historian design](project/HISTORIAN.md)
