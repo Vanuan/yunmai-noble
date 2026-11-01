@@ -75,21 +75,10 @@ checksums itself so it does not need `apt-utils`.
 
 ## Install from the repository
 
-```sh
-sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://vanuan.github.io/yunmai-noble/apt/yunmai-noble-archive-keyring.gpg \
-  | sudo tee /etc/apt/keyrings/yunmai-noble.gpg >/dev/null
-sudo tee /etc/apt/sources.list.d/yunmai-noble.sources <<'EOF'
-Types: deb
-URIs: https://vanuan.github.io/yunmai-noble/apt
-Suites: stable
-Components: main
-Architectures: amd64 arm64
-Signed-By: /etc/apt/keyrings/yunmai-noble.gpg
-EOF
-sudo apt update
-sudo apt install yunmai-noble-full
-```
+User-facing instructions live in [INSTALL.md](../INSTALL.md). In short, clients
+add `/etc/apt/keyrings/yunmai-noble.gpg` and a deb822 source for
+`https://vanuan.github.io/yunmai-noble/apt` (suite `stable`, component `main`),
+run `apt update`, then install `yunmai-noble-full`.
 
 `unattended-upgrades` ignores third-party repositories unless they are allowed
 explicitly. Add the origin in `/etc/apt/apt.conf.d/50unattended-upgrades`:

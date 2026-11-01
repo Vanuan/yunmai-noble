@@ -3,8 +3,15 @@
 Yunmai scales BLE node, simulator, weight historian, web dashboard, and a
 single-executable suite that runs them together.
 
+## Install
 
-## Quick start
+Debian, Ubuntu, and Raspberry Pi OS users install signed `.deb` packages from
+the APT repository. See [INSTALL.md](INSTALL.md) for adding the source,
+updating, installing, and removing the packages. The rest of this file covers
+running from a checkout.
+
+
+## Development quick start
 
 Requires Node 22 (`.nvmrc`) and Bun 1.3+. The desktop client additionally needs
 Rust stable.
@@ -168,7 +175,11 @@ Four packages are built with `dpkg-deb`:
 ```sh
 bun install
 packaging/deb/build.sh                   # writes dist/deb/*.deb
-sudo apt install ./dist/deb/yunmai-noble-full_0.2.0_all.deb
+
+# install the built files together, or add the repository and use apt
+sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb \
+                 ./dist/deb/yunmai-noble-desktop_0.2.0_amd64.deb \
+                 ./dist/deb/yunmai-noble-full_0.2.0_all.deb
 ```
 
 | Package | What it installs |
@@ -184,7 +195,8 @@ service can switch to the simulator driver from the desktop app, so the
 simulator package is only needed for a second instance running in parallel.
 `apt remove` keeps data; `apt purge` removes it. See
 [packaging/deb/README.md](packaging/deb/README.md) for the layout, build
-flags, and glibc/architecture notes.
+flags, and glibc/architecture notes, and [INSTALL.md](INSTALL.md) for
+end-user install, update, and removal instructions.
 
 Tagged releases publish a signed APT repository at
 `https://vanuan.github.io/yunmai-noble/apt` (suite `stable`) and `.deb` files

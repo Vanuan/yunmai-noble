@@ -174,7 +174,10 @@ against the same historian URL.
 bun install
 packaging/deb/build.sh          # or: bun run deb
 
-sudo apt install ./dist/deb/yunmai-noble-full_0.2.0_all.deb
+# desktop + service from the local files
+sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb \
+                 ./dist/deb/yunmai-noble-desktop_0.2.0_amd64.deb \
+                 ./dist/deb/yunmai-noble-full_0.2.0_all.deb
 
 # headless host
 sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb
@@ -182,6 +185,10 @@ sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb
 # optional parallel demo instance
 sudo apt install ./dist/deb/yunmai-noble-simulator_0.2.0_amd64.deb
 ```
+
+Users installing from the published repository do not build anything; see
+[INSTALL.md](../INSTALL.md) for the keyring, `.sources` file, upgrade, and
+removal steps.
 
 The post-install script creates the user and data directories, enables and
 starts the units, and reloads systemd. `apt remove` keeps the databases;

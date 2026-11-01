@@ -98,7 +98,10 @@ signing-key, and retention details.
 ## Install
 
 ```sh
-sudo apt install ./yunmai-noble-full_0.2.0_all.deb
+# desktop + service from the local files
+sudo apt install ./yunmai-noble_0.2.0_amd64.deb \
+                 ./yunmai-noble-desktop_0.2.0_amd64.deb \
+                 ./yunmai-noble-full_0.2.0_all.deb
 
 # headless service only
 sudo apt install ./yunmai-noble_0.2.0_amd64.deb
@@ -106,6 +109,10 @@ sudo apt install ./yunmai-noble_0.2.0_amd64.deb
 # optional parallel demo instance
 sudo apt install ./yunmai-noble-simulator_0.2.0_amd64.deb
 ```
+
+With the APT repository configured, `sudo apt install yunmai-noble-full` is
+enough. [INSTALL.md](../../INSTALL.md) has the full install, update, and
+removal guide, including the repository setup.
 
 The post-install script creates the `yunmai` user and data directories,
 enables and starts the units, and reloads systemd. `apt remove` stops and
