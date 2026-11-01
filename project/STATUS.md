@@ -41,9 +41,10 @@ API and live relay. The desktop client is still missing. See
   reports `upstream` plus per-source `upstreams` in `/health`.
 - `packages/ui`: React + Vite + Tailwind dashboard at `/` with live readings,
   trend chart, and history.
-- Simulator app at `/simulator/`: a separate entry point with power, weight,
-  user, step-on, step-off, and history replay; the node exposes a loopback
-  control server and the suite proxies it at `/api/suite/simulator`.
+- Simulator app at `/simulator/`: a separate entry point styled as the real
+  scale platform (concealed display, electrodes, central disc) with power,
+  weight, user, step-on, step-off, and history replay; the node exposes a
+  loopback control server and the suite proxies it at `/api/suite/simulator`.
 - `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
 - 81 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with

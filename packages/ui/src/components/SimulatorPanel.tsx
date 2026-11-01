@@ -7,8 +7,8 @@ import {
   type ApiError,
   type SimulatorState,
 } from "../api";
-import { formatWeight } from "../lib/format";
 import { ErrorBanner } from "./ErrorBanner";
+import { ScalePlatform } from "./ScalePlatform";
 import { StatusPill } from "./StatusPill";
 
 type PanelMode = "loading" | "ready" | "stopped" | "unavailable";
@@ -168,18 +168,25 @@ export function SimulatorPanel({ liveWeightKg }: { liveWeightKg: number | null }
       ? "ready"
       : "off";
 
+  function pressScale(): void {
+    const current = simulator;
+    if (busy || !current) return;
+    if (!current.powered) {
+      void run(() => simulatorCommand("power", { on: true }));
+      return;
+    }
+    if (!current.running && current.subscribed) {
+      void run(() => simulatorCommand("start"));
+    }
+  }
+
   return (
-    <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-medium text-stone-500 dark:text-stone-400">
-            Simulator scale
-          </h2>
-          <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">
-            {simulator.steps} steps · {simulator.intervalMs} ms · repeat{" "}
-            {simulator.repeat ? "on" : "off"} · {simulator.history} in history
-          </p>
-        </div>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-stone-400 dark:text-stone-500">
+          {simulator.steps} steps · {simulator.intervalMs} ms · repeat{" "}
+          {simulator.repeat ? "on" : "off"} · {simulator.history} in history
+        </p>
         <StatusPill
           label={status}
           tone={
@@ -192,131 +199,123 @@ export function SimulatorPanel({ liveWeightKg }: { liveWeightKg: number | null }
         />
       </div>
 
-      {error ? <div className="mt-4"><ErrorBanner message={error} /></div> : null}
-
-      <div className="mt-5 flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-        <div className="w-full rounded-2xl bg-stone-900 p-5 text-center font-mono text-emerald-300 shadow-inner dark:bg-black">
-          <p className="text-4xl font-semibold tabular-nums tracking-tight sm:text-5xl">
-            {formatWeight(display)}
-          </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-emerald-500/70">
-            {simulator.running ? "weighing" : "last reading"}
-          </p>
+      {error ? (
+        <div className="mt-4">
+          <ErrorBanner message={error} />
         </div>
+      ) : null}
 
-        <button
-          type="button"
-          onClick={() => void run(() => simulatorCommand("start"))}
-          disabled={
-            busy ||
-            !simulator.powered ||
-            !simulator.subscribed ||
-            simulator.running
-          }
-          className="h-32 w-32 shrink-0 rounded-full bg-amber-500 text-sm font-semibold uppercase tracking-wide text-stone-950 shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:h-36 sm:w-36"
-        >
-          {simulator.running ? "Weighing..." : "Step on"}
-        </button>
+      <div className="mt-8">
+        <ScalePlatform
+          weightKg={display}
+          powered={simulator.powered}
+          running={simulator.running}
+          subscribed={simulator.subscribed}
+          disabled={busy}
+          onPress={pressScale}
+        />
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-4 py-3 dark:border-stone-800">
-          <div>
-            <p className="text-sm font-medium">Power</p>
-            <p className="text-xs text-stone-500 dark:text-stone-400">
-              {simulator.powered ? "scale is on" : "scale is off"}
-            </p>
+      <div className="mx-auto mt-10 w-full max-w-[30rem] space-y-3">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Power</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                {simulator.powered ? "scale is on" : "scale is off"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={simulator.powered}
+              aria-label="Simulator scale power"
+              onClick={() =>
+                void run(() =>
+                  simulatorCommand("power", { on: !simulator.powered })
+                )
+              }
+              disabled={busy}
+              className={`relative h-7 w-12 rounded-full transition ${
+                simulator.powered
+                  ? "bg-emerald-500"
+                  : "bg-stone-300 dark:bg-stone-700"
+              } disabled:opacity-50`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
+                  simulator.powered ? "left-6" : "left-1"
+                }`}
+              />
+            </button>
           </div>
+
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_5.5rem] gap-3">
+            <label className="text-xs font-medium text-stone-500 dark:text-stone-400">
+              Weight (kg)
+              <input
+                type="number"
+                min="0.1"
+                max="655.35"
+                step="0.01"
+                value={weight}
+                onFocus={() => {
+                  weightEditing.current = true;
+                }}
+                onChange={(event) => setWeight(event.target.value)}
+                onBlur={submitWeight}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+                className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm tabular-nums text-stone-900 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </label>
+            <label className="text-xs font-medium text-stone-500 dark:text-stone-400">
+              User
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={user}
+                onFocus={() => {
+                  userEditing.current = true;
+                }}
+                onChange={(event) => setUser(event.target.value)}
+                onBlur={submitUser}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+                className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm tabular-nums text-stone-900 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
           <button
             type="button"
-            role="switch"
-            aria-checked={simulator.powered}
-            aria-label="Simulator scale power"
-            onClick={() =>
-              void run(() =>
-                simulatorCommand("power", { on: !simulator.powered })
-              )
-            }
-            disabled={busy}
-            className={`relative h-7 w-12 rounded-full transition ${
-              simulator.powered
-                ? "bg-emerald-500"
-                : "bg-stone-300 dark:bg-stone-700"
-            } disabled:opacity-50`}
+            onClick={() => void run(() => simulatorCommand("stop"))}
+            disabled={busy || !simulator.running}
+            className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-stone-700"
           >
-            <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-                simulator.powered ? "left-6" : "left-1"
-              }`}
-            />
+            Step off
+          </button>
+          <button
+            type="button"
+            onClick={() => void run(() => simulatorCommand("history"))}
+            disabled={busy || !simulator.powered}
+            className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-stone-700"
+          >
+            Replay history
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="flex-1 text-xs font-medium text-stone-500 dark:text-stone-400">
-            Weight (kg)
-            <input
-              type="number"
-              min="0.1"
-              max="655.35"
-              step="0.01"
-              value={weight}
-              onFocus={() => {
-                weightEditing.current = true;
-              }}
-              onChange={(event) => setWeight(event.target.value)}
-              onBlur={submitWeight}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm tabular-nums text-stone-900 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </label>
-          <label className="w-24 text-xs font-medium text-stone-500 dark:text-stone-400">
-            User
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={user}
-              onFocus={() => {
-                userEditing.current = true;
-              }}
-              onChange={(event) => setUser(event.target.value)}
-              onBlur={submitUser}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-              }}
-              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm tabular-nums text-stone-900 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
-            />
-          </label>
-        </div>
+        {!simulator.subscribed ? (
+          <p className="text-center text-xs text-stone-400 dark:text-stone-500">
+            Waiting for the node to subscribe to the simulated scale...
+          </p>
+        ) : null}
       </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void run(() => simulatorCommand("stop"))}
-          disabled={busy || !simulator.running}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-stone-700"
-        >
-          Step off
-        </button>
-        <button
-          type="button"
-          onClick={() => void run(() => simulatorCommand("history"))}
-          disabled={busy || !simulator.powered}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-stone-700"
-        >
-          Replay history
-        </button>
-      </div>
-
-      {!simulator.subscribed ? (
-        <p className="mt-3 text-xs text-stone-400 dark:text-stone-500">
-          Waiting for the node to subscribe to the simulated scale...
-        </p>
-      ) : null}
     </section>
   );
 }
