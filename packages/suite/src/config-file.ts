@@ -38,6 +38,7 @@ const TABLES: Record<string, Record<string, KeySpec>> = {
     interval_ms: { env: "SIMULATOR_INTERVAL_MS", kind: "integer" },
     cycle_delay_ms: { env: "SIMULATOR_CYCLE_DELAY_MS", kind: "integer" },
     scan_delay_ms: { env: "SIMULATOR_SCAN_DELAY_MS", kind: "integer" },
+    auto_start: { env: "SIMULATOR_AUTO_START", kind: "boolean" },
     repeat: { env: "SIMULATOR_REPEAT", kind: "boolean" },
   },
 };

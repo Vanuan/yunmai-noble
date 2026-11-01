@@ -40,11 +40,16 @@ driver speaks the same v1 WebSocket contract, so the historian can follow any
 combination of them at once.
 
 ```sh
+bun run lab                                # lab.toml: simulator only
 bun run suite                              # dbus driver, UI at :3000
 bun run suite --config ./lab.toml          # explicit config file
 SUITE_SCALES=simulator bun run suite       # environment override
 SUITE_SCALES=dbus,simulator bun run suite  # real scale and simulation together
 ```
+
+`lab.toml` is committed for hardware-free development: loopback bind,
+simulator only, and no auto-start or repeat, so each weighing starts from the
+simulator console.
 
 ## Configuration
 
@@ -107,8 +112,8 @@ suite builds `packages/ui/dist` on first run; rebuild it with
 below the GATT layer inside the node child. It repeats a weighing every few
 seconds and accepts the same commands as the hardware. Tune it under
 `[simulator]` in the config file, or with `SIMULATOR_WEIGHT_KG`,
-`SIMULATOR_STEPS`, `SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`, and
-`SIMULATOR_REPEAT`.
+`SIMULATOR_STEPS`, `SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`,
+`SIMULATOR_AUTO_START`, and `SIMULATOR_REPEAT`.
 
 `bun run simulate` is a separate interactive REPL that speaks the scale side of
 the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
@@ -169,6 +174,7 @@ packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
 packages/suite      Single executable: historian + UI + driver supervisor
 packages/ui         React/Vite/Tailwind dashboard
 apps/desktop        planned Rust/GPUI desktop client
+lab.toml            simulator-only development config
 project/            design and status documents
 yunmai-noble.example.toml  sample suite configuration
 ```

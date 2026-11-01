@@ -30,4 +30,5 @@ restart_ms = 2000             # restart delay after a crash; 0 disables
 # interval_ms = 300
 # cycle_delay_ms = 5000
 # scan_delay_ms = 200
+# auto_start = true
 # repeat = true

@@ -1,0 +1,24 @@
+# Lab profile: no Bluetooth hardware.
+#
+# Run with `bun run lab`, or `bun run suite --config lab.toml`.
+# Drive the virtual scale from the dashboard or /api/suite/simulator.
+# Environment variables still override these values.
+
+[historian]
+host = "127.0.0.1"
+port = 3000
+database_path = "./data/lab.sqlite"
+
+[drivers]
+initial = ["simulator"]
+port_base = 8080
+node_id_prefix = "lab"
+restart_ms = 2000
+
+[simulator]
+weight_kg = 72.4
+steps = 6
+interval_ms = 200
+cycle_delay_ms = 4000
+auto_start = false
+repeat = false

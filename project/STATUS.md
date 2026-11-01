@@ -42,7 +42,8 @@ API and live relay. The desktop client is still missing. See
 - Simulator console: the node exposes a loopback control server, the suite
   proxies it at `/api/suite/simulator`, and the UI drives power, weight, user,
   step-on, step-off, and history replay.
-- 81 Bun tests and `tsc --noEmit`.
+- `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
+- 82 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 

@@ -458,6 +458,8 @@ class DbusLink extends EventEmitter {
         });
       })
       .catch(function(error) {
+        // Devices can disappear between devices() and getDevice().
+        if (error && error.message === 'Device not found') return;
         self._logger.error('dbus: failed to inspect ' + address + ': ' + error.message);
       });
   }

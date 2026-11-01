@@ -13,6 +13,7 @@
     "simulate": "bun run --cwd packages/node simulate",
     "historian": "bun run packages/historian/src/main.ts",
     "suite": "bun run packages/suite/src/main.ts",
+    "lab": "bun run packages/suite/src/main.ts --config lab.toml",
     "ui": "bun run --cwd packages/ui dev",
     "build:ui": "bun run --cwd packages/ui build",
     "test": "bun test",

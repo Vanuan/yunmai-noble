@@ -382,6 +382,38 @@ test('reuses device proxies across scans', async function() {
   }
 });
 
+test('ignores devices that disappear during inspection', async function() {
+  const errors = [];
+  const logger = {
+    log: function() {},
+    error: function(message) { errors.push(message); }
+  };
+
+  const adapter = new FakeAdapter({});
+  adapter.devices = async function() { return ['GHOST']; };
+
+  const link = dbus.createLink({
+    createBluetooth: function() {
+      return {
+        bluetooth: { defaultAdapter: async function() { return adapter; } },
+        destroy: function() {}
+      };
+    },
+    scanIntervalMs: 1,
+    logger: logger
+  });
+
+  try {
+    await waitForState(link, 'poweredOn');
+    link.startScanning();
+    await delay(30);
+
+    assert.deepEqual(errors, []);
+  } finally {
+    link.destroy();
+  }
+});
+
 test('emits disconnect when the underlying device drops', async function() {
   const scale = buildScale();
   const fake = fakeBluetooth({ [scale.device.address]: scale.device });

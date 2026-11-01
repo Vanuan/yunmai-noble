@@ -34,6 +34,7 @@ restart_ms = 0
 weight_kg = 80.5
 steps = 6
 repeat = false
+auto_start = false
 `;
 
 test("loads a local TOML file into environment overrides", () => {
@@ -54,6 +55,7 @@ test("loads a local TOML file into environment overrides", () => {
     assert.equal(result.env.SUITE_DRIVER_RESTART_MS, "0");
     assert.equal(result.env.SIMULATOR_WEIGHT_KG, "80.5");
     assert.equal(result.env.SIMULATOR_STEPS, "6");
+    assert.equal(result.env.SIMULATOR_AUTO_START, "false");
     assert.equal(result.env.SIMULATOR_REPEAT, "false");
   });
 });
