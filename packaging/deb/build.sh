@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Build the yunmai-noble and yunmai-noble-simulator Debian packages with
-# dpkg-deb. No fpm or cargo-deb: the runtime tree is staged explicitly so the
-# same layout can be reused by CI or a Nix derivation later.
+# Build the yunmai-noble service, desktop, metapackage, and simulator Debian
+# packages with dpkg-deb. No fpm or cargo-deb: the runtime tree is staged
+# explicitly so the same layout can be reused by CI or a Nix derivation later.
 #
 #   packaging/deb/build.sh
 #   packaging/deb/build.sh --arch arm64 --version 0.2.0 --out dist/deb
@@ -31,7 +31,8 @@ Usage: packaging/deb/build.sh [options]
   --stage <dir>        staging directory (default: <out>/stage)
   --bun <path>         Bun binary to bundle (default: bun on PATH)
   --libc <version>     minimum glibc version (default: detected from binaries)
-  --skip-desktop       do not build or install the GPUI desktop client
+  --skip-desktop       do not build the GPUI clients, desktop package, or
+                       metapackage
   --skip-bun           do not bundle Bun; the wrapper falls back to PATH
   -h, --help           show this help
 EOF
@@ -85,7 +86,8 @@ log "staging in $STAGE"
 
 rm -rf "$STAGE"
 mkdir -p "$STAGE/app" "$STAGE/desktop" \
-  "$STAGE/pkg/yunmai-noble" "$STAGE/pkg/yunmai-noble-simulator"
+  "$STAGE/pkg/yunmai-noble" "$STAGE/pkg/yunmai-noble-desktop" \
+  "$STAGE/pkg/yunmai-noble-full" "$STAGE/pkg/yunmai-noble-simulator"
 
 log "building web UI"
 (cd "$ROOT" && "$BUN" run build:ui)
@@ -201,8 +203,6 @@ mkdir -p \
   "$MAIN/DEBIAN" \
   "$MAIN/usr/bin" \
   "$MAIN/usr/lib/systemd/system" \
-  "$MAIN/usr/share/applications" \
-  "$MAIN/usr/share/icons/hicolor/scalable/apps" \
   "$MAIN/usr/share/doc/yunmai-noble" \
   "$MAIN/etc/yunmai-noble"
 
@@ -220,16 +220,8 @@ cp "$PKG_DIR/yunmai-noble/README.Debian" "$MAIN/usr/share/doc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/copyright" "$MAIN/usr/share/doc/yunmai-noble/"
 gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
   > "$MAIN/usr/share/doc/yunmai-noble/changelog.gz"
-cp "$PKG_DIR/yunmai-noble/yunmai-noble.svg" \
-  "$MAIN/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg"
 cp "$PKG_DIR/yunmai-noble/postinst" "$PKG_DIR/yunmai-noble/prerm" \
   "$PKG_DIR/yunmai-noble/postrm" "$MAIN/DEBIAN/"
-
-if [ "$SKIP_DESKTOP" -eq 0 ]; then
-  cp "$STAGE/desktop/yunmai-noble-desktop" "$MAIN/usr/bin/"
-  cp "$STAGE/desktop/yunmai-noble-simulator-ui" "$MAIN/usr/bin/"
-  cp "$PKG_DIR/yunmai-noble/yunmai-noble.desktop" "$MAIN/usr/share/applications/"
-fi
 
 cat > "$MAIN/usr/bin/yunmai-noble" <<'EOF'
 #!/bin/sh
@@ -255,28 +247,78 @@ write_md5sums "$MAIN"
 
 chmod 0755 "$MAIN/DEBIAN/postinst" "$MAIN/DEBIAN/prerm" \
   "$MAIN/DEBIAN/postrm" "$MAIN/usr/bin/yunmai-noble"
-[ "$SKIP_DESKTOP" -eq 1 ] || chmod 0755 "$MAIN/usr/bin/yunmai-noble-desktop" \
-  "$MAIN/usr/bin/yunmai-noble-simulator-ui"
 chmod 0644 "$MAIN/DEBIAN/control" "$MAIN/DEBIAN/conffiles" \
   "$MAIN/DEBIAN/md5sums" "$MAIN/usr/lib/systemd/system/yunmai-noble.service" \
   "$MAIN/etc/yunmai-noble/config.toml" "$MAIN/etc/yunmai-noble/config.env" \
   "$MAIN/usr/share/doc/yunmai-noble/README.Debian" \
   "$MAIN/usr/share/doc/yunmai-noble/copyright" \
-  "$MAIN/usr/share/doc/yunmai-noble/changelog.gz" \
-  "$MAIN/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg"
+  "$MAIN/usr/share/doc/yunmai-noble/changelog.gz"
+
 if [ "$SKIP_DESKTOP" -eq 0 ]; then
-  chmod 0644 "$MAIN/usr/share/applications/yunmai-noble.desktop"
+  log "assembling yunmai-noble-desktop"
+  DESKTOP="$STAGE/pkg/yunmai-noble-desktop"
+  mkdir -p \
+    "$DESKTOP/DEBIAN" \
+    "$DESKTOP/usr/bin" \
+    "$DESKTOP/usr/share/applications" \
+    "$DESKTOP/usr/share/icons/hicolor/scalable/apps" \
+    "$DESKTOP/usr/share/doc/yunmai-noble-desktop"
+
+  cp "$STAGE/desktop/yunmai-noble-desktop" \
+    "$STAGE/desktop/yunmai-noble-simulator-ui" "$DESKTOP/usr/bin/"
+  cp "$PKG_DIR/yunmai-noble-desktop/yunmai-noble.desktop" \
+    "$DESKTOP/usr/share/applications/"
+  cp "$PKG_DIR/yunmai-noble-desktop/yunmai-noble.svg" \
+    "$DESKTOP/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg"
+  cp "$PKG_DIR/yunmai-noble-desktop/README.Debian" \
+    "$PKG_DIR/yunmai-noble/copyright" \
+    "$DESKTOP/usr/share/doc/yunmai-noble-desktop/"
+  gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
+    > "$DESKTOP/usr/share/doc/yunmai-noble-desktop/changelog.gz"
+
+  find "$DESKTOP" -type d -exec chmod 0755 {} +
+  write_control "$DESKTOP" "$PKG_DIR/yunmai-noble-desktop/control.in"
+  write_md5sums "$DESKTOP"
+
+  chmod 0755 "$DESKTOP/usr/bin/yunmai-noble-desktop" \
+    "$DESKTOP/usr/bin/yunmai-noble-simulator-ui"
+  chmod 0644 "$DESKTOP/DEBIAN/control" "$DESKTOP/DEBIAN/md5sums" \
+    "$DESKTOP/usr/share/applications/yunmai-noble.desktop" \
+    "$DESKTOP/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg" \
+    "$DESKTOP/usr/share/doc/yunmai-noble-desktop/README.Debian" \
+    "$DESKTOP/usr/share/doc/yunmai-noble-desktop/copyright" \
+    "$DESKTOP/usr/share/doc/yunmai-noble-desktop/changelog.gz"
+
+  log "assembling yunmai-noble-full"
+  FULL="$STAGE/pkg/yunmai-noble-full"
+  mkdir -p "$FULL/DEBIAN" "$FULL/usr/share/doc/yunmai-noble-full"
+  cp "$PKG_DIR/yunmai-noble-full/README.Debian" \
+    "$PKG_DIR/yunmai-noble/copyright" \
+    "$FULL/usr/share/doc/yunmai-noble-full/"
+  gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
+    > "$FULL/usr/share/doc/yunmai-noble-full/changelog.gz"
+
+  find "$FULL" -type d -exec chmod 0755 {} +
+  write_control "$FULL" "$PKG_DIR/yunmai-noble-full/control.in"
+  write_md5sums "$FULL"
+
+  chmod 0644 "$FULL/DEBIAN/control" "$FULL/DEBIAN/md5sums" \
+    "$FULL/usr/share/doc/yunmai-noble-full/README.Debian" \
+    "$FULL/usr/share/doc/yunmai-noble-full/copyright" \
+    "$FULL/usr/share/doc/yunmai-noble-full/changelog.gz"
 fi
 
 log "assembling yunmai-noble-simulator"
 SIM="$STAGE/pkg/yunmai-noble-simulator"
 mkdir -p \
   "$SIM/DEBIAN" \
+  "$SIM/usr/bin" \
   "$SIM/usr/lib/systemd/system" \
   "$SIM/usr/share/applications" \
   "$SIM/usr/share/doc/yunmai-noble-simulator" \
   "$SIM/etc/yunmai-noble"
 
+cp "$PKG_DIR/yunmai-noble-simulator/yunmai-noble-simulator" "$SIM/usr/bin/"
 cp "$PKG_DIR/yunmai-noble-simulator/yunmai-noble-simulator.service" \
   "$SIM/usr/lib/systemd/system/"
 cp "$PKG_DIR/yunmai-noble-simulator/simulator.toml" "$SIM/etc/yunmai-noble/"
@@ -302,7 +344,8 @@ find "$SIM" -type d -exec chmod 0755 {} +
 write_control "$SIM" "$PKG_DIR/yunmai-noble-simulator/control.in"
 write_md5sums "$SIM"
 
-chmod 0755 "$SIM/DEBIAN/postinst" "$SIM/DEBIAN/prerm" "$SIM/DEBIAN/postrm"
+chmod 0755 "$SIM/DEBIAN/postinst" "$SIM/DEBIAN/prerm" "$SIM/DEBIAN/postrm" \
+  "$SIM/usr/bin/yunmai-noble-simulator"
 chmod 0644 "$SIM/DEBIAN/control" "$SIM/DEBIAN/conffiles" \
   "$SIM/DEBIAN/md5sums" \
   "$SIM/usr/lib/systemd/system/yunmai-noble-simulator.service" \
@@ -317,13 +360,23 @@ fi
 
 mkdir -p "$OUT"
 MAIN_DEB="$OUT/yunmai-noble_${VERSION}_${ARCH}.deb"
+DESKTOP_DEB="$OUT/yunmai-noble-desktop_${VERSION}_${ARCH}.deb"
+FULL_DEB="$OUT/yunmai-noble-full_${VERSION}_all.deb"
 SIM_DEB="$OUT/yunmai-noble-simulator_${VERSION}_${ARCH}.deb"
 
 log "building packages"
-rm -f "$MAIN_DEB" "$SIM_DEB"
+rm -f "$MAIN_DEB" "$DESKTOP_DEB" "$FULL_DEB" "$SIM_DEB"
 dpkg-deb --root-owner-group --build "$MAIN" "$MAIN_DEB"
+if [ "$SKIP_DESKTOP" -eq 0 ]; then
+  dpkg-deb --root-owner-group --build "$STAGE/pkg/yunmai-noble-desktop" "$DESKTOP_DEB"
+  dpkg-deb --root-owner-group --build "$STAGE/pkg/yunmai-noble-full" "$FULL_DEB"
+fi
 dpkg-deb --root-owner-group --build "$SIM" "$SIM_DEB"
 
 log "done"
 printf '  %s (%s)\n' "$MAIN_DEB" "$(du -h "$MAIN_DEB" | awk '{print $1}')"
+if [ "$SKIP_DESKTOP" -eq 0 ]; then
+  printf '  %s (%s)\n' "$DESKTOP_DEB" "$(du -h "$DESKTOP_DEB" | awk '{print $1}')"
+  printf '  %s (%s)\n' "$FULL_DEB" "$(du -h "$FULL_DEB" | awk '{print $1}')"
+fi
 printf '  %s (%s)\n' "$SIM_DEB" "$(du -h "$SIM_DEB" | awk '{print $1}')"

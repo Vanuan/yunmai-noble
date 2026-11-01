@@ -93,16 +93,21 @@ Package the stack natively and expose it on the local network.
 
 ## Ubuntu `.deb` (service + desktop app)
 
-Two packages are built with `dpkg-deb` from one staged runtime:
+Four packages are built with `dpkg-deb` from one staged runtime:
 
 | Package | Purpose | Port | Data |
 | --- | --- | --- | --- |
-| `yunmai-noble` | Real scale service, web UI, desktop client | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-full` | Metapackage: service + desktop client | — | — |
+| `yunmai-noble` | Real scale service and web UI | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-desktop` | GPUI dashboard and simulator control app | — | — |
 | `yunmai-noble-simulator` | Virtual scale for demos | `3100` | `/var/lib/yunmai-noble-simulator` |
 
+The split keeps X11/Wayland/GL dependencies off headless hosts. The
+desktop package talks to the suite API over HTTP and can target a remote
+historian; the metapackage is the normal one-command install.
 `yunmai-noble-simulator` depends on the exact main version and shares
-`/usr/lib/yunmai-noble`; it only adds a unit, a config file, and a desktop
-entry. See [packaging/deb/README.md](../packaging/deb/README.md).
+`/usr/lib/yunmai-noble`; it only adds a unit, a config file, a launcher, and
+a desktop entry. See [packaging/deb/README.md](../packaging/deb/README.md).
 
 ### `yunmai-noble`
 
@@ -119,14 +124,27 @@ entry. See [packaging/deb/README.md](../packaging/deb/README.md).
   the database lives in `/var/lib/yunmai-noble/historian.sqlite`. The service
   starts the drivers in `[drivers] initial`; the desktop client can switch them
   at runtime through `/api/suite`.
-- **Desktop:** `/usr/bin/yunmai-noble-desktop`, the application entry, and the
-  icon are part of the same package. The titlebar Settings dialog selects
-  simulator, D-Bus, or node bindings and stops the others. When the simulator
-  is active it launches `/usr/bin/yunmai-noble-simulator-ui`, which drives
-  `/api/suite/simulator` and never touches D-Bus.
-- **Dependencies:** `dbus`, `ca-certificates`, the X11/xkb/gcc libraries,
-  `adduser`, and a `libc6` minimum detected from the binary. `bluez` is
-  recommended rather than required.
+- **Dependencies:** `dbus`, `ca-certificates`, `adduser`, and a `libc6`
+  minimum detected from the binary. `bluez` is recommended rather than
+  required.
+- **No GUI dependencies:** the GPUI binaries and their X11/xkb/GL
+  libraries live in `yunmai-noble-desktop`.
+
+### `yunmai-noble-desktop`
+
+- `/usr/bin/yunmai-noble-desktop`, `/usr/bin/yunmai-noble-simulator-ui`, the
+  "Yunmai Noble" entry, and the icon. It only recommends `yunmai-noble`, so
+  a laptop can use it against a remote service.
+- The titlebar Settings dialog selects simulator, D-Bus, or node bindings
+  and stops the others. When the simulator is active it launches
+  `yunmai-noble-simulator-ui`, which drives `/api/suite/simulator` and never
+  touches D-Bus.
+
+### `yunmai-noble-full`
+
+- Metapackage with `Depends: yunmai-noble, yunmai-noble-desktop` at the
+  exact version. It suggests `yunmai-noble-simulator` rather than
+  installing it, since that package starts a second service.
 
 ### `yunmai-noble-simulator` (optional)
 
@@ -134,7 +152,8 @@ entry. See [packaging/deb/README.md](../packaging/deb/README.md).
   package is only for a parallel demo instance with its own database.
 - Its unit sets `SUITE_SCALES=simulator` and `SUITE_NODE_ID_PREFIX=sim`, reads
   `/etc/yunmai-noble/simulator.toml`, and listens on `127.0.0.1:3100`.
-- The "Yunmai Noble Simulator" desktop entry points the client at port `3100`
+- The "Yunmai Noble Simulator" desktop entry runs the packaged
+  `yunmai-noble-simulator` launcher, which points the client at port `3100`
   and sets `YUNMAI_SERVICE=yunmai-noble-simulator.service`.
 
 ### Launcher
@@ -155,8 +174,13 @@ against the same historian URL.
 bun install
 packaging/deb/build.sh          # or: bun run deb
 
-sudo apt install ./dist/deb/yunmai-noble_0.1.0_amd64.deb
-sudo apt install ./dist/deb/yunmai-noble-simulator_0.1.0_amd64.deb
+sudo apt install ./dist/deb/yunmai-noble-full_0.2.0_all.deb
+
+# headless host
+sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb
+
+# optional parallel demo instance
+sudo apt install ./dist/deb/yunmai-noble-simulator_0.2.0_amd64.deb
 ```
 
 The post-install script creates the user and data directories, enables and

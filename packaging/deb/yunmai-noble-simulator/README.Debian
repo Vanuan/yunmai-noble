@@ -11,7 +11,9 @@ the scale, pick a weight, and step on and off. Measurements are stored
 in /var/lib/yunmai-noble-simulator/historian.sqlite.
 
 The "Yunmai Noble Simulator" desktop entry opens the same client against
-port 3100 and starts this service on demand.
+port 3100 and starts this service on demand. From a terminal:
+
+  yunmai-noble-simulator
 
 Configuration: /etc/yunmai-noble/simulator.toml
 Environment:   /etc/yunmai-noble/simulator.env

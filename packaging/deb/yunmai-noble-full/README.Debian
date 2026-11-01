@@ -1,0 +1,18 @@
+yunmai-noble-full
+=================
+
+Metapackage. Install it to get the complete application:
+
+  yunmai-noble           service, web dashboard, bundled Bun runtime
+  yunmai-noble-desktop   GPUI dashboard and simulator control app
+
+The desktop client is in Applications as "Yunmai Noble" and connects to
+http://127.0.0.1:3000.
+
+The virtual scale for demos is a separate package:
+
+  sudo apt install yunmai-noble-simulator
+
+That installs a second service on 127.0.0.1:3100 with its own database,
+so a simulated scale can run alongside a real one. It is not a
+dependency of this metapackage because it starts an extra service.

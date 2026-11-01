@@ -13,9 +13,10 @@ is only for Raspberry Pi deployment.
 
 The historian is implemented with SQLite, WebSocket ingest from one or more
 nodes, HTTP JSON APIs, and an SSE relay. A React browser dashboard consumes the
-API and live relay. A Rust/GPUI desktop client ships with the service in the
-Ubuntu `.deb` packages. See [ARCHITECTURE.md](ARCHITECTURE.md) and
-[ROADMAP.md](ROADMAP.md).
+API and live relay. A Rust/GPUI desktop client ships as a separate
+`yunmai-noble-desktop` package, with `yunmai-noble-full` as the metapackage
+that installs the service and the client together. See
+[ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Implemented
 
@@ -62,9 +63,12 @@ Ubuntu `.deb` packages. See [ARCHITECTURE.md](ARCHITECTURE.md) and
   start a packaged system unit or the dev suite; `YUNMAI_SERVICE` selects the
   unit.
 - Debian packaging: `packaging/deb/build.sh` stages a clean runtime with a
-  bundled Bun, builds the desktop client, and produces `yunmai-noble` and
-  `yunmai-noble-simulator` with systemd units, conffiles, and desktop entries.
-  The simulator shares the runtime and runs on port 3100 with its own database.
+  bundled Bun and produces `yunmai-noble` (service and web UI),
+  `yunmai-noble-desktop` (both GPUI apps), `yunmai-noble-full` (metapackage),
+  and `yunmai-noble-simulator` (demo instance), with systemd units, conffiles,
+  and desktop entries. The GUI is split out so headless hosts do not pull X11
+  or GL libraries; the simulator shares the runtime and runs on port 3100 with
+  its own database.
 - 152 Bun tests, 16 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.

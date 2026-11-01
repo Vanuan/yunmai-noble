@@ -1,16 +1,24 @@
 # Debian packages
 
-Two packages are built from one staged runtime:
+Four packages are built from one staged runtime:
 
 | Package | Purpose | Port | Data |
 | --- | --- | --- | --- |
-| `yunmai-noble` | Real scale service, web UI, desktop client, simulator UI | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-full` | Metapackage: service + desktop client | — | — |
+| `yunmai-noble` | Real scale service and web UI | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-desktop` | GPUI dashboard and simulator control app | — | — |
 | `yunmai-noble-simulator` | Virtual scale for demos | `3100` | `/var/lib/yunmai-noble-simulator` |
 
+The service and the GUI are separate so a headless Raspberry Pi install does
+not pull X11, Wayland, or GL libraries. `yunmai-noble-full` is the
+one-command install: it depends on the exact service and desktop versions.
+`yunmai-noble-desktop` talks to the suite API over HTTP and only recommends
+the local service, so it can point at a remote host.
+
 `yunmai-noble-simulator` depends on the exact `yunmai-noble` version and adds
-only a unit, a config file, and a desktop entry. Both services run from the
-same `/usr/lib/yunmai-noble` tree, so installing the simulator does not
-duplicate the Bun runtime or the app sources.
+only a unit, a config file, a launcher, and a desktop entry. All packages run
+from the same `/usr/lib/yunmai-noble` tree, so installing the simulator does
+not duplicate the Bun runtime or the app sources.
 
 The desktop client is the primary way to choose the driver: it starts the
 selected suite driver and stops the others through `/api/suite`. When the
@@ -21,21 +29,27 @@ and only useful for running a demo instance in parallel with the real service.
 ## Layout
 
 ```
+# yunmai-noble
 /usr/bin/yunmai-noble                       wrapper -> bundled Bun + suite
-/usr/bin/yunmai-noble-desktop               GPUI client
-/usr/bin/yunmai-noble-simulator-ui          GPUI simulator control app
 /usr/lib/yunmai-noble/runtime/bun           bundled Bun (self-contained)
 /usr/lib/yunmai-noble/packages/             app sources + node_modules + ui/dist
 /usr/lib/systemd/system/yunmai-noble.service
-/usr/lib/systemd/system/yunmai-noble-simulator.service
 /etc/yunmai-noble/config.toml               main conffile
 /etc/yunmai-noble/config.env                main env overrides (conffile)
+/var/lib/yunmai-noble/                      SQLite database
+
+# yunmai-noble-desktop
+/usr/bin/yunmai-noble-desktop               GPUI client
+/usr/bin/yunmai-noble-simulator-ui          GPUI simulator control app
+/usr/share/applications/yunmai-noble.desktop
+/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg
+
+# yunmai-noble-simulator
+/usr/bin/yunmai-noble-simulator             launcher for the demo instance
+/usr/lib/systemd/system/yunmai-noble-simulator.service
 /etc/yunmai-noble/simulator.toml            simulator conffile
 /etc/yunmai-noble/simulator.env             simulator env overrides (conffile)
-/usr/share/applications/yunmai-noble.desktop
 /usr/share/applications/yunmai-noble-simulator.desktop
-/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg
-/var/lib/yunmai-noble/                      SQLite database
 /var/lib/yunmai-noble-simulator/            SQLite database
 ```
 
@@ -51,17 +65,19 @@ packaging/deb/build.sh
 # or: bun run deb
 ```
 
-Outputs `dist/deb/yunmai-noble_<version>_<arch>.deb` and
-`dist/deb/yunmai-noble-simulator_<version>_<arch>.deb`. The script builds the
-web UI, stages a clean workspace copy, runs
+Outputs `dist/deb/yunmai-noble_<version>_<arch>.deb`,
+`yunmai-noble-desktop_<version>_<arch>.deb`,
+`yunmai-noble-full_<version>_all.deb`, and
+`yunmai-noble-simulator_<version>_<arch>.deb`. The script builds the web UI,
+stages a clean workspace copy, runs
 `bun install --production --frozen-lockfile --omit=peer --omit=optional`,
-builds the desktop client and simulator UI with Cargo, and assembles both
+builds the desktop client and simulator UI with Cargo, and assembles the
 control trees.
 
 Useful flags:
 
-- `--skip-desktop` builds the service without the GPUI clients (desktop and
-  simulator UI).
+- `--skip-desktop` builds the service and simulator packages without the
+  GPUI clients, the desktop package, or the metapackage.
 - `--skip-bun` skips the bundled runtime; the wrapper then uses `bun` from
   `PATH` (development only).
 - `--libc <version>` overrides the detected `libc6` minimum.
@@ -74,8 +90,13 @@ driver is the only hardware path shipped.
 ## Install
 
 ```sh
-sudo apt install ./yunmai-noble_0.1.0_amd64.deb
-sudo apt install ./yunmai-noble-simulator_0.1.0_amd64.deb   # optional
+sudo apt install ./yunmai-noble-full_0.2.0_all.deb
+
+# headless service only
+sudo apt install ./yunmai-noble_0.2.0_amd64.deb
+
+# optional parallel demo instance
+sudo apt install ./yunmai-noble-simulator_0.2.0_amd64.deb
 ```
 
 The post-install script creates the `yunmai` user and data directories,
@@ -93,9 +114,11 @@ xdg-open http://127.0.0.1:3000/
 
 The client probes `/health` before opening. When the historian is unreachable
 and the URL is loopback, it starts the packaged system unit and waits for it.
-`YUNMAI_SERVICE` selects the unit, which is how the simulator entry starts
-`yunmai-noble-simulator.service` instead. `YUNMAI_AUTOSTART=none` disables the
-whole path.
+`YUNMAI_SERVICE` selects the unit, which is how `yunmai-noble-simulator` (the
+launcher in the simulator package) starts `yunmai-noble-simulator.service`
+instead. `YUNMAI_AUTOSTART=none` disables the whole path. Without
+`yunmai-noble`, the desktop client still works with `--historian <url>`
+against a remote service.
 
 ## Driver support
 

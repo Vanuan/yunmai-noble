@@ -1,6 +1,14 @@
-yunmai-noble (0.1.0) unstable; urgency=medium
+yunmai-noble (0.2.0) unstable; urgency=medium
 
-  * Initial package: suite service, bundled Bun runtime, web UI, and the
-    GPUI desktop client.
+  * Split the desktop client into yunmai-noble-desktop and add the
+    yunmai-noble-full metapackage, so headless installs avoid X11 and GL
+    dependencies.
+  * Add a yunmai-noble-simulator launcher for the demo instance.
 
  -- Vanuan <vanuan@gmail.com>  Sun, 01 Nov 2026 00:00:00 +0000
+
+yunmai-noble (0.1.0) unstable; urgency=medium
+
+  * Initial package: suite service, bundled Bun runtime, and web UI.
+
+ -- Vanuan <vanuan@gmail.com>  Sat, 31 Oct 2026 00:00:00 +0000

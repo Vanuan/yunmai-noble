@@ -22,12 +22,9 @@ After editing config.toml or config.env:
 
   sudo systemctl restart yunmai-noble
 
-The desktop client is installed as "Yunmai Noble" in the application menu.
-It connects to http://127.0.0.1:3000 and starts the system service on
-demand. Set YUNMAI_HISTORIAN_URL to point it at another historian.
-
-Open Settings from the titlebar, select the Simulator driver, then use
-"Open simulator" to launch the standalone virtual-scale app.
+The desktop client ships separately as yunmai-noble-desktop. Install
+it, or yunmai-noble-full for the service and the client together, to get
+the "Yunmai Noble" entry in the application menu.
 
 The web UI is also reachable from other machines on the LAN because the
 service binds 0.0.0.0. Change [historian] host in config.toml to

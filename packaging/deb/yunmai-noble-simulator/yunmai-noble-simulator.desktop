@@ -3,7 +3,7 @@ Type=Application
 Name=Yunmai Noble Simulator
 GenericName=Virtual Bluetooth scale
 Comment=Drive a virtual Yunmai scale and browse its measurements
-Exec=env YUNMAI_HISTORIAN_URL=http://127.0.0.1:3100 YUNMAI_SERVICE=yunmai-noble-simulator.service yunmai-noble-desktop
+Exec=yunmai-noble-simulator
 Icon=yunmai-noble
 Terminal=false
 Categories=Utility;

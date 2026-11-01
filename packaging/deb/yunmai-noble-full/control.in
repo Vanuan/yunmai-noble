@@ -1,0 +1,17 @@
+Package: yunmai-noble-full
+Version: @VERSION@
+Architecture: all
+Maintainer: Vanuan <vanuan@gmail.com>
+Installed-Size: @INSTALLED_SIZE@
+Homepage: https://github.com/Vanuan/yunmai-noble
+Depends: yunmai-noble (= @VERSION@), yunmai-noble-desktop (= @VERSION@)
+Suggests: yunmai-noble-simulator (= @VERSION@)
+Section: metapackages
+Priority: optional
+Description: Yunmai Noble service and desktop client
+ Metapackage that installs the complete Yunmai Noble application: the
+ Bluetooth scale service with its web dashboard, and the GPUI desktop
+ client with the simulator control app.
+ .
+ The virtual scale service for demos is not installed by default;
+ install yunmai-noble-simulator to run it in parallel on port 3100.

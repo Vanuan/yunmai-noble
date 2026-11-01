@@ -4,6 +4,7 @@ Architecture: @ARCH@
 Maintainer: Vanuan <vanuan@gmail.com>
 Installed-Size: @INSTALLED_SIZE@
 Depends: adduser, yunmai-noble (= @VERSION@)
+Recommends: yunmai-noble-desktop (= @VERSION@)
 Section: utils
 Priority: optional
 Description: Virtual Yunmai scale for demos and testing
@@ -12,5 +13,5 @@ Description: Virtual Yunmai scale for demos and testing
  3100 and stores data in /var/lib/yunmai-noble-simulator, so it can run
  alongside the real Bluetooth service.
  .
- The package shares the runtime and desktop client with yunmai-noble and
- only adds a service unit, a configuration file, and a desktop entry.
+ The package shares the runtime with yunmai-noble and only adds a
+ service unit, a configuration file, a launcher, and a desktop entry.

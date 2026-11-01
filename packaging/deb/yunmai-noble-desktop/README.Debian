@@ -1,0 +1,23 @@
+yunmai-noble-desktop
+====================
+
+The dashboard and the simulator control app are a single package with no
+service of its own. Start it from the application menu, or directly:
+
+  yunmai-noble-desktop
+  yunmai-noble-desktop --historian http://pi.local:3000
+
+YUNMAI_HISTORIAN_URL overrides the default http://127.0.0.1:3000 for the
+menu entry. The client probes /health before opening; when the URL is
+loopback and the service is not running, it starts yunmai-noble.service
+and waits for it. Set YUNMAI_AUTOSTART=none (or pass --no-autostart) to
+disable that.
+
+Settings in the titlebar selects the active driver (simulator, D-Bus, or
+node bindings) and remembers the choice in
+~/.config/yunmai-noble/desktop.json. When the simulator driver is active,
+"Open simulator" launches yunmai-noble-simulator-ui, which drives
+/api/suite/simulator and never touches D-Bus.
+
+Install yunmai-noble for the local service, or yunmai-noble-full for the
+service and this client together.

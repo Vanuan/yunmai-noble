@@ -163,17 +163,19 @@ remaining SSE/trend work.
 
 ## Debian packages
 
-Two packages are built with `dpkg-deb`:
+Four packages are built with `dpkg-deb`:
 
 ```sh
 bun install
 packaging/deb/build.sh                   # writes dist/deb/*.deb
-sudo apt install ./dist/deb/yunmai-noble_0.1.0_amd64.deb
+sudo apt install ./dist/deb/yunmai-noble-full_0.2.0_all.deb
 ```
 
 | Package | What it installs |
 | --- | --- |
-| `yunmai-noble` | `/usr/bin/yunmai-noble` with a bundled Bun, the app sources under `/usr/lib/yunmai-noble`, `yunmai-noble.service` on port 3000, `/etc/yunmai-noble/config.toml`, `/usr/bin/yunmai-noble-desktop` with a menu entry and driver picker, and `/usr/bin/yunmai-noble-simulator-ui` |
+| `yunmai-noble-full` | Metapackage: the service and the desktop client together, i.e. the normal install |
+| `yunmai-noble` | `/usr/bin/yunmai-noble` with a bundled Bun, the app sources under `/usr/lib/yunmai-noble`, `yunmai-noble.service` on port 3000, and `/etc/yunmai-noble/config.toml`; no GUI dependencies |
+| `yunmai-noble-desktop` | `/usr/bin/yunmai-noble-desktop` with a menu entry and driver picker, plus `/usr/bin/yunmai-noble-simulator-ui`; talks to the service over HTTP and can target a remote host |
 | `yunmai-noble-simulator` | Optional parallel demo: `yunmai-noble-simulator.service` on port 3100, `/etc/yunmai-noble/simulator.toml`, and a simulator menu entry; depends on the main package and shares its runtime |
 
 The service runs as the `yunmai` user and keeps its SQLite database under

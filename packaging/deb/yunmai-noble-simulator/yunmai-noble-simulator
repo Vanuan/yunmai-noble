@@ -1,0 +1,11 @@
+#!/bin/sh
+# Open the desktop client against the demo instance and start its service on
+# demand. Kept in this package so the desktop entry does not call a binary that
+# lives in another package.
+set -e
+
+: "${YUNMAI_HISTORIAN_URL:=http://127.0.0.1:3100}"
+: "${YUNMAI_SERVICE:=yunmai-noble-simulator.service}"
+export YUNMAI_HISTORIAN_URL YUNMAI_SERVICE
+
+exec yunmai-noble-desktop "$@"

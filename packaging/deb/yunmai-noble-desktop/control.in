@@ -1,0 +1,23 @@
+Package: yunmai-noble-desktop
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: Vanuan <vanuan@gmail.com>
+Installed-Size: @INSTALLED_SIZE@
+Homepage: https://github.com/Vanuan/yunmai-noble
+Depends: fontconfig, libc6 (>= @LIBC@), libfreetype6, libgcc-s1, libxau6, libxcb-xkb1, libxcb1, libxdmcp6, libxkbcommon-x11-0, libxkbcommon0
+Breaks: yunmai-noble (<< @VERSION@)
+Replaces: yunmai-noble (<< @VERSION@)
+Recommends: fonts-dejavu-core, libgl1 | libvulkan1, yunmai-noble (= @VERSION@)
+Suggests: yunmai-noble-simulator
+Section: utils
+Priority: optional
+Description: GPUI dashboard and simulator control for Yunmai Noble
+ The yunmai-noble-desktop application shows the latest measurement, the
+ live scale state, and the measurement history, and it selects which
+ suite driver is active through the Settings dialog. It also ships
+ yunmai-noble-simulator-ui, the standalone virtual-scale control app.
+ .
+ The client talks to the suite API over HTTP, so it can point at a
+ remote historian with --historian or YUNMAI_HISTORIAN_URL. Installing
+ yunmai-noble locally makes the default 127.0.0.1:3000 work and lets the
+ client start the service on demand.
