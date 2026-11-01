@@ -33,12 +33,18 @@ jobs:
 
       - name: Check tag against package version
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' package.json | head -n 1)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
             exit 1
           fi
-          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+          epoch=$(git log -1 --format=%ct)
+          if [ -z "$epoch" ]; then
+            echo "cannot read the commit timestamp" >&2
+            exit 1
+          fi
+          echo "SOURCE_DATE_EPOCH=$epoch" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
         run: |
@@ -106,6 +112,7 @@ jobs:
             echo "add the GPG_PRIVATE_KEY repository secret" >&2
             exit 1
           fi
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           install -d -m 700 "$HOME/.gnupg"
           printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
           echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"

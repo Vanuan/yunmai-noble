@@ -9,6 +9,9 @@
 #
 set -euo pipefail
 
+# dpkg-deb rejects an empty SOURCE_DATE_EPOCH, so treat it as unset.
+[ -n "${SOURCE_DATE_EPOCH:-}" ] || unset SOURCE_DATE_EPOCH
+
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PKG_DIR="$ROOT/packaging/deb"
 
