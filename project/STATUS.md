@@ -5,8 +5,9 @@ _Last updated: 2026-11-01_
 ## Summary
 
 `yunmai-noble` is a Node.js service that reads Yunmai Bluetooth LE scale
-measurements using `noble` and broadcasts them as JSON over WebSocket. It runs
-in Docker on a Raspberry Pi near the scale.
+measurements using `@abandonware/noble` and broadcasts them as JSON over
+WebSocket. It targets Node 22 and runs in Docker on a Raspberry Pi near the
+scale.
 
 The Web UI, Weight historian, and database from the
 [idea diagram](../README.md#idea) are not implemented. This repository
@@ -22,8 +23,9 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 | `src/bluetooth/simulator/` | Simulated scale: link, GATT emulation, packet builders |
 | `src/yunmai/protocol.js` | Measuring and measured packet parsers |
 | `bin/simulate.js` | Interactive simulator harness |
-| `test/` | Frame and simulator tests |
-| `package.json` | Dependencies and `start`, `simulate`, `test` scripts |
+| `test/` | Protocol, link, simulator, and end-to-end WebSocket tests |
+| `package.json` | Node 22 engine, dependencies, and `start`, `simulate`, `test` scripts |
+| `.nvmrc` | Pins Node 22 for `nvm use` |
 | `Dockerfile`, `x86/Dockerfile`, `docker-compose.yml`, `run.sh` | Build and deployment |
 | `README.md`, `project/` | Documentation |
 
@@ -37,7 +39,9 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 - Runs without BLE hardware with `BLE_DRIVER=simulator`; the simulator
   advertises `YUNMAI-SIM`, emits measuring and measured packets, and responds
   to commands on `ffe4`.
-- `yarn simulate` drives the simulator interactively; `yarn test` runs tests.
+- `yarn simulate` drives the simulator interactively.
+- `yarn test` runs 18 tests with Node's built-in test runner, including an
+  end-to-end check that the app streams simulated weights over WebSocket.
 
 ## Known issues
 
@@ -46,8 +50,8 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 - The simulator's checksum is a simple byte sum; real semantics are unknown.
 - The simulator is in-process, not a virtual BLE peripheral.
 - Disconnect calls `process.exit(0)`; recovery relies on Docker restart policy.
-- WebSocket port, device-name filter, and UUIDs are hardcoded.
-- The Node 6 base image is end-of-life.
+- The device-name filter and UUIDs are hardcoded; the WebSocket port is set via
+  `WS_PORT`.
 - `Dockerfile` is dev-only; `run.sh` pulls a prebuilt image.
 - `x86/Dockerfile` duplicates the root `Dockerfile`.
 - No CI or linter.
@@ -67,6 +71,7 @@ is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## How to run
 
+- Local development requires Node 22 (`.nvmrc`).
 - With BLE: `docker-compose up --build`.
 - Without BLE: `BLE_DRIVER=simulator yarn start`.
 - Interactive simulator: `yarn simulate`.

@@ -2,14 +2,17 @@
   "name": "yunmai-noble",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node ble.js",
     "simulate": "node bin/simulate.js",
-    "test": "node test/protocol.test.js && node test/simulator.test.js"
+    "test": "node --test"
   },
   "dependencies": {
-    "binary-parser": "^1.3.0",
-    "noble": "^1.8.1",
-    "ws": "^6.0.0"
+    "@abandonware/noble": "^1.9.2-26",
+    "binary-parser": "^2.3.0",
+    "ws": "^8.22.1"
   }
 }

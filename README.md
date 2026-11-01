@@ -27,6 +27,9 @@ $ curl -fsSL https://raw.githubusercontent.com/Vanuan/yunmai-noble/master/run.sh
 ```
 
 ## Development (on any laptop that supports BLE)
+
+Requires Node 22 (see `.nvmrc`) or Docker.
+
 ```
 $ docker-compose up --build
 ...

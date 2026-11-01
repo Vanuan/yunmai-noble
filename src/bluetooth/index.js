@@ -37,7 +37,7 @@ function createLink(options) {
   const driver = options.driver || process.env.BLE_DRIVER || 'noble';
 
   if (driver === 'noble') {
-    return require('noble');
+    return require('@abandonware/noble');
   }
 
   if (driver === 'simulator') {

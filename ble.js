@@ -2,7 +2,8 @@ var noble = require('./src/bluetooth').createLink();
 var protocol = require('./src/yunmai/protocol');
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wsPort = Number(process.env.WS_PORT) || 8080;
+const wss = new WebSocket.Server({ port: wsPort });
 
 const broadcast = function broadcast(data) {
   const stringData = JSON.stringify(data);
