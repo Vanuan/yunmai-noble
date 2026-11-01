@@ -114,6 +114,15 @@ seconds and accepts the same commands as the hardware. Tune it under
 the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
 inspecting packets and acks, not for feeding the node.
 
+When the driver runs under the suite, the dashboard shows a simulator scale:
+power switch, weight and user fields, Step on / Step off, and Replay history.
+The same controls are available as JSON:
+
+```sh
+GET  /api/suite/simulator
+POST /api/suite/simulator/{start,stop,power,weight,user,history}
+```
+
 ## Web UI
 
 The dashboard is React + Vite + Tailwind in `packages/ui`. It reads history from

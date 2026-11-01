@@ -12,6 +12,16 @@ const capabilities = [
   'error'
 ];
 
+var simulatorControl = null;
+var simulatorControlPort = Number(process.env.SIMULATOR_CONTROL_PORT) || 0;
+if (simulatorControlPort && typeof noble.control === 'function') {
+  simulatorControl = require('./src/bluetooth/simulator/control').startControlServer({
+    port: simulatorControlPort,
+    control: noble.control(),
+    logger: console
+  });
+}
+
 const wss = new WebSocket.Server({ port: wsPort });
 let bluetoothState = 'unknown';
 let scanning = false;
@@ -164,6 +174,10 @@ function display(data) {
 }
 
 process.on('SIGINT', function() {
+  if (simulatorControl) {
+    simulatorControl.close();
+    simulatorControl = null;
+  }
   if(connectedPeripheral) {
     console.log( "Disconnecting..." );
     connectedPeripheral.disconnect();

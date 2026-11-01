@@ -38,8 +38,11 @@ API and live relay. The desktop client is still missing. See
 - Multi-source ingest: the historian follows every configured upstream and
   reports `upstream` plus per-source `upstreams` in `/health`.
 - `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
-  chart, and history; `bun run ui` proxies to the historian.
-- 76 Bun tests and `tsc --noEmit`.
+  chart, history, and a simulator scale console.
+- Simulator console: the node exposes a loopback control server, the suite
+  proxies it at `/api/suite/simulator`, and the UI drives power, weight, user,
+  step-on, step-off, and history replay.
+- 81 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 

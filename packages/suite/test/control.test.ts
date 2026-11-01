@@ -24,7 +24,7 @@ function view(overrides: Partial<DriverView> = {}): DriverView {
   };
 }
 
-function supervisor(): DriverSupervisor {
+function supervisor(overrides: Partial<DriverView> = {}): DriverSupervisor {
   return {
     list: () => [
       view({
@@ -32,6 +32,7 @@ function supervisor(): DriverSupervisor {
         state: "running",
         pid: 42,
         startedAt: "2026-11-01T10:00:00.000Z",
+        ...overrides,
       }),
       view({ driver: "dbus", nodeId: "scale-dbus", url: "ws://127.0.0.1:8080" }),
     ],
@@ -62,18 +63,33 @@ function ingests(): IngestGroup {
   } as unknown as IngestGroup;
 }
 
-function request(method: string, path: string): Request {
-  return new Request(`http://127.0.0.1:3000${path}`, { method });
+function request(method: string, path: string, body?: unknown): Request {
+  return new Request(`http://127.0.0.1:3000${path}`, {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
-function options() {
-  return { supervisor: supervisor(), ingests: ingests() };
+function options(
+  controlUrl = "http://127.0.0.1:1",
+  driver: Partial<DriverView> = {}
+) {
+  return {
+    supervisor: supervisor(driver),
+    ingests: ingests(),
+    simulatorControlUrl: controlUrl,
+  };
+}
+
+function url(path: string): URL {
+  return new URL(`http://127.0.0.1:3000${path}`);
 }
 
 test("lists drivers with their upstream status", async () => {
-  const response = handleSuiteRequest(
+  const response = await handleSuiteRequest(
     request("GET", "/api/suite"),
-    new URL("http://127.0.0.1:3000/api/suite"),
+    url("/api/suite"),
     options()
   );
 
@@ -100,9 +116,9 @@ test("starts and stops a driver", async () => {
     ["start", "start:simulator"],
     ["stop", "stop:simulator"],
   ] as const) {
-    const response = handleSuiteRequest(
+    const response = await handleSuiteRequest(
       request("POST", `/api/suite/drivers/simulator/${action}`),
-      new URL(`http://127.0.0.1:3000/api/suite/drivers/simulator/${action}`),
+      url(`/api/suite/drivers/simulator/${action}`),
       options()
     );
 
@@ -116,27 +132,86 @@ test("starts and stops a driver", async () => {
 test("rejects unknown drivers and wrong methods", async () => {
   CALLS.length = 0;
 
-  const unknown = handleSuiteRequest(
+  const unknown = await handleSuiteRequest(
     request("POST", "/api/suite/drivers/usb/start"),
-    new URL("http://127.0.0.1:3000/api/suite/drivers/usb/start"),
+    url("/api/suite/drivers/usb/start"),
     options()
   );
   assert.equal(unknown?.status, 404);
   assert.deepEqual(CALLS, []);
 
-  const wrongMethod = handleSuiteRequest(
+  const wrongMethod = await handleSuiteRequest(
     request("GET", "/api/suite/drivers/dbus/start"),
-    new URL("http://127.0.0.1:3000/api/suite/drivers/dbus/start"),
+    url("/api/suite/drivers/dbus/start"),
     options()
   );
   assert.equal(wrongMethod?.status, 405);
   assert.deepEqual(CALLS, []);
 });
 
-test("leaves unrelated routes to the historian", () => {
-  const response = handleSuiteRequest(
+test("proxies simulator commands to the simulator node", async () => {
+  const seen: Array<{ method: string; path: string; body: string }> = [];
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const requestUrl = new URL(request.url);
+      seen.push({
+        method: request.method,
+        path: requestUrl.pathname,
+        body: request.method === "POST" ? await request.text() : "",
+      });
+      return Response.json({ powered: true, running: false });
+    },
+  });
+
+  try {
+    const controlUrl = `http://127.0.0.1:${server.port}`;
+
+    const state = await handleSuiteRequest(
+      request("GET", "/api/suite/simulator"),
+      url("/api/suite/simulator"),
+      options(controlUrl)
+    );
+    assert.equal(state?.status, 200);
+    assert.deepEqual(await state?.json(), { powered: true, running: false });
+
+    const weighted = await handleSuiteRequest(
+      request("POST", "/api/suite/simulator/weight", { kg: 80 }),
+      url("/api/suite/simulator/weight"),
+      options(controlUrl)
+    );
+    assert.equal(weighted?.status, 200);
+
+    assert.deepEqual(seen, [
+      { method: "GET", path: "/api/simulator", body: "" },
+      { method: "POST", path: "/api/simulator/weight", body: '{"kg":80}' },
+    ]);
+  } finally {
+    server.stop(true);
+  }
+});
+
+test("reports a stopped or unreachable simulator", async () => {
+  const stopped = await handleSuiteRequest(
+    request("GET", "/api/suite/simulator"),
+    url("/api/suite/simulator"),
+    options("http://127.0.0.1:1", { state: "stopped" })
+  );
+  assert.equal(stopped?.status, 409);
+
+  const unreachable = await handleSuiteRequest(
+    request("GET", "/api/suite/simulator"),
+    url("/api/suite/simulator"),
+    options("http://127.0.0.1:1")
+  );
+  assert.equal(unreachable?.status, 503);
+});
+
+test("leaves unrelated routes to the historian", async () => {
+  const response = await handleSuiteRequest(
     request("GET", "/api/measurements"),
-    new URL("http://127.0.0.1:3000/api/measurements"),
+    url("/api/measurements"),
     options()
   );
 

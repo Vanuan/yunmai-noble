@@ -7,6 +7,7 @@ export interface SuiteConfig {
   portBase: number;
   nodeIdPrefix: string;
   restartMs: number;
+  simulatorControlPort: number;
 }
 
 function integer(
@@ -50,15 +51,35 @@ function parseDrivers(raw: string | undefined): DriverName[] {
 export function loadSuiteConfig(
   env: Record<string, string | undefined> = process.env
 ): SuiteConfig {
+  const portBase = integer(
+    env.SUITE_WS_PORT_BASE,
+    "SUITE_WS_PORT_BASE",
+    8080,
+    1,
+    65535
+  );
+
   const config: SuiteConfig = {
     drivers: parseDrivers(env.SUITE_SCALES),
-    portBase: integer(env.SUITE_WS_PORT_BASE, "SUITE_WS_PORT_BASE", 8080, 1, 65535),
+    portBase,
     nodeIdPrefix: env.SUITE_NODE_ID_PREFIX?.trim() || "scale",
     restartMs: integer(env.SUITE_DRIVER_RESTART_MS, "SUITE_DRIVER_RESTART_MS", 2000, 0, 60000),
+    simulatorControlPort: integer(
+      env.SUITE_SIMULATOR_CONTROL_PORT,
+      "SUITE_SIMULATOR_CONTROL_PORT",
+      portBase + 100,
+      1,
+      65535
+    ),
   };
 
   if (config.portBase + DRIVERS.length - 1 > 65535) {
     throw new Error("SUITE_WS_PORT_BASE leaves no room for every driver port");
+  }
+  if (config.simulatorControlPort > 65535) {
+    throw new Error(
+      "SUITE_WS_PORT_BASE leaves no room for the simulator control port"
+    );
   }
 
   return config;

@@ -45,8 +45,10 @@ communicating over the v1 WebSocket contract. This keeps drivers isolated and
 lets `noble` use Node 22 while everything else runs on Bun.
 
 The control surface at `/api/suite` starts and stops drivers at runtime, so
-simulated and real scales can feed the same historian concurrently. A desktop
-distribution can embed this supervisor or ship it as a sidecar.
+simulated and real scales can feed the same historian concurrently. Simulator
+routes are proxied to a loopback control server in the simulator node; the
+web UI uses them for a power switch, weight, user, step-on, and history replay.
+A desktop distribution can embed this supervisor or ship it as a sidecar.
 
 ## Ports
 

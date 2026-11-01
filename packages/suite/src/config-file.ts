@@ -26,6 +26,10 @@ const TABLES: Record<string, Record<string, KeySpec>> = {
     port_base: { env: "SUITE_WS_PORT_BASE", kind: "integer" },
     node_id_prefix: { env: "SUITE_NODE_ID_PREFIX", kind: "string" },
     restart_ms: { env: "SUITE_DRIVER_RESTART_MS", kind: "integer" },
+    simulator_control_port: {
+      env: "SUITE_SIMULATOR_CONTROL_PORT",
+      kind: "integer",
+    },
   },
   simulator: {
     name: { env: "SIMULATOR_NAME", kind: "string" },

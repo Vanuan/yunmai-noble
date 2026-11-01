@@ -32,13 +32,57 @@ export interface Health {
   };
 }
 
+export interface SimulatorState {
+  powered: boolean;
+  subscribed: boolean;
+  running: boolean;
+  weightKg: number;
+  lastWeightKg: number | null;
+  user: number;
+  unit: "kg" | "lb";
+  step: number;
+  steps: number;
+  repeat: boolean;
+  intervalMs: number;
+  history: number;
+}
+
+export interface ApiError extends Error {
+  status: number;
+  code?: string;
+}
+
+export type SimulatorAction =
+  | "start"
+  | "stop"
+  | "power"
+  | "weight"
+  | "user"
+  | "history";
+
 export type DeviceStatus = Extract<ServerMessage, { type: "status" }>["payload"];
 export type LiveConnection = "connecting" | "live" | "offline";
 
-async function request<T>(path: string): Promise<T> {
-  const response = await fetch(path);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    let message = `Request failed: ${response.status} ${response.statusText}`;
+    let code: string | undefined;
+
+    try {
+      const body = (await response.json()) as {
+        error?: { code?: string; message?: string };
+      };
+      if (body.error?.message) message = body.error.message;
+      code = body.error?.code;
+    } catch {
+      // Keep the status text when the body is not JSON.
+    }
+
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      code,
+    }) as ApiError;
   }
   return (await response.json()) as T;
 }
@@ -63,6 +107,25 @@ export async function fetchLatest(): Promise<Measurement | null> {
 
 export function fetchHealth(): Promise<Health> {
   return request<Health>("/health");
+}
+
+export function fetchSimulator(): Promise<SimulatorState> {
+  return request<SimulatorState>("/api/suite/simulator");
+}
+
+export function startSimulatorDriver(): Promise<unknown> {
+  return request("/api/suite/drivers/simulator/start", { method: "POST" });
+}
+
+export function simulatorCommand(
+  action: SimulatorAction,
+  body?: unknown
+): Promise<SimulatorState> {
+  return request<SimulatorState>(`/api/suite/simulator/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
 }
 
 export interface LiveHandlers {

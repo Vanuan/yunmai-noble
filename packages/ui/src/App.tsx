@@ -2,6 +2,7 @@ import { ErrorBanner } from "./components/ErrorBanner";
 import { Header } from "./components/Header";
 import { HistoryList } from "./components/HistoryList";
 import { LatestWeightCard } from "./components/LatestWeightCard";
+import { SimulatorPanel } from "./components/SimulatorPanel";
 import { WeightChart } from "./components/WeightChart";
 import { useDashboard } from "./hooks/useDashboard";
 
@@ -41,6 +42,7 @@ export function App() {
               deviceStatus={deviceStatus}
             />
             <WeightChart measurements={measurements} />
+            <SimulatorPanel liveWeightKg={live?.weightKg ?? null} />
           </div>
           <div className="lg:col-span-2">
             <HistoryList measurements={measurements} />

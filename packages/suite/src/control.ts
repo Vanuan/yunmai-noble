@@ -6,6 +6,7 @@ import type { DriverSupervisor, DriverView } from "./supervisor";
 export interface SuiteControlOptions {
   supervisor: DriverSupervisor;
   ingests: IngestGroup;
+  simulatorControlUrl: string;
 }
 
 interface DriverResponse extends DriverView {
@@ -39,14 +40,56 @@ function describe(options: SuiteControlOptions): {
   };
 }
 
-// Control surface for the single executable. Drivers can be started or stopped
-// while it runs, so the simulator and real BLE can feed the historian at the
-// same time.
-export function handleSuiteRequest(
+async function proxySimulator(
   request: Request,
   url: URL,
   options: SuiteControlOptions
-): Response | null {
+): Promise<Response> {
+  const driver = options.supervisor
+    .list()
+    .find((entry) => entry.driver === "simulator");
+
+  if (!driver || (driver.state !== "running" && driver.state !== "starting")) {
+    return error(
+      409,
+      "simulator_not_running",
+      "The simulator driver is not running"
+    );
+  }
+
+  const path =
+    url.pathname.replace("/api/suite/simulator", "/api/simulator") +
+    url.search;
+  const init: RequestInit = { method: request.method };
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = (await request.text()) || "{}";
+  }
+
+  try {
+    const response = await fetch(`${options.simulatorControlUrl}${path}`, init);
+    return new Response(await response.text(), {
+      status: response.status,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  } catch {
+    return error(
+      503,
+      "simulator_unavailable",
+      "Simulator control is not reachable"
+    );
+  }
+}
+
+// Control surface for the single executable. Drivers can be started or stopped
+// while it runs, so the simulator and real BLE can feed the historian at the
+// same time. Simulator-specific routes are proxied to the simulator node.
+export async function handleSuiteRequest(
+  request: Request,
+  url: URL,
+  options: SuiteControlOptions
+): Promise<Response | null> {
   if (!url.pathname.startsWith("/api/suite")) return null;
 
   if (url.pathname === "/api/suite") {
@@ -54,6 +97,13 @@ export function handleSuiteRequest(
       return error(405, "method_not_allowed", "Use GET");
     }
     return json(describe(options));
+  }
+
+  if (
+    url.pathname === "/api/suite/simulator" ||
+    url.pathname.startsWith("/api/suite/simulator/")
+  ) {
+    return proxySimulator(request, url, options);
   }
 
   const match = url.pathname.match(

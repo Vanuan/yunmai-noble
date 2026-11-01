@@ -9,6 +9,7 @@ test("defaults to the real BLE driver", () => {
     portBase: 8080,
     nodeIdPrefix: "scale",
     restartMs: 2000,
+    simulatorControlPort: 8180,
   });
 });
 
@@ -18,11 +19,13 @@ test("parses and deduplicates multiple drivers", () => {
     SUITE_WS_PORT_BASE: "9000",
     SUITE_NODE_ID_PREFIX: "home",
     SUITE_DRIVER_RESTART_MS: "0",
+    SUITE_SIMULATOR_CONTROL_PORT: "9500",
   });
 
   assert.deepEqual(config.drivers, ["simulator", "dbus"]);
   assert.equal(config.portBase, 9000);
   assert.equal(config.restartMs, 0);
+  assert.equal(config.simulatorControlPort, 9500);
   assert.equal(driverNodeId(config, "dbus"), "home-dbus");
   assert.equal(driverPort(config, "dbus"), 9000);
   assert.equal(driverPort(config, "simulator"), 9001);
@@ -40,6 +43,10 @@ test("rejects unknown drivers and invalid numbers", () => {
   assert.throws(
     () => loadSuiteConfig({ SUITE_DRIVER_RESTART_MS: "-1" }),
     /SUITE_DRIVER_RESTART_MS/
+  );
+  assert.throws(
+    () => loadSuiteConfig({ SUITE_WS_PORT_BASE: "65500" }),
+    /simulator control port/
   );
 });
 

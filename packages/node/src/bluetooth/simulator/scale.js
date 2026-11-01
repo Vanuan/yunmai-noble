@@ -50,15 +50,17 @@ class Scale extends EventEmitter {
     this.history = this.options.history || defaultHistory();
     this.unit = 'kg';
     this.userId = this.options.userId;
+    this.powered = true;
     this.subscribed = false;
     this.running = false;
+    this.lastWeightKg = null;
     this.timer = null;
     this.step = 0;
   }
 
   subscribe() {
     this.subscribed = true;
-    if (this.options.autoStart) this.start();
+    if (this.options.autoStart && this.powered) this.start();
   }
 
   unsubscribe() {
@@ -67,13 +69,14 @@ class Scale extends EventEmitter {
   }
 
   start() {
-    if (this.running) return;
+    if (!this.powered || !this.subscribed || this.running) return false;
     clearTimeout(this.timer);
     this.timer = null;
     this.running = true;
     this.step = 0;
     this.logger.log('simulator: weighing started');
     this.schedule(this.options.intervalMs);
+    return true;
   }
 
   stop() {
@@ -91,6 +94,10 @@ class Scale extends EventEmitter {
     } catch (error) {
       this.logger.error('simulator: invalid command: ' + error.message);
       return [packets.buildAckPacket(0x00, packets.AckStatus.INVALID_ARGUMENT)];
+    }
+
+    if (!this.powered) {
+      return [this.ack(command.type, packets.AckStatus.INVALID_ARGUMENT)];
     }
 
     switch (command.type) {
@@ -133,6 +140,59 @@ class Scale extends EventEmitter {
     });
   }
 
+  // Control surface for the simulator node. It stays below the packet layer so
+  // the web console drives the same code path as a real scale.
+  state() {
+    return {
+      powered: this.powered,
+      subscribed: this.subscribed,
+      running: this.running,
+      weightKg: this.options.weightKg,
+      lastWeightKg: this.lastWeightKg,
+      user: this.userId,
+      unit: this.unit,
+      step: this.step,
+      steps: this.options.steps,
+      repeat: this.options.repeat,
+      intervalMs: this.options.intervalMs,
+      history: this.history.length
+    };
+  }
+
+  setPowered(powered) {
+    this.powered = Boolean(powered);
+    if (!this.powered) {
+      this.stop();
+    } else if (this.subscribed && this.options.autoStart) {
+      this.start();
+    }
+    return this.state();
+  }
+
+  setWeightKg(weightKg) {
+    this.options.weightKg = roundWeight(weightKg);
+    return this.state();
+  }
+
+  setUser(userId) {
+    this.userId = userId;
+    return this.state();
+  }
+
+  setUnit(unit) {
+    this.unit = unit;
+    return this.state();
+  }
+
+  sendHistory() {
+    const self = this;
+    const packetsToSend = this.historyPackets();
+    packetsToSend.forEach(function(packet) {
+      self.emit('packet', packet);
+    });
+    return packetsToSend.length;
+  }
+
   ack(commandType, status) {
     return packets.buildAckPacket(commandType, status);
   }
@@ -152,6 +212,7 @@ class Scale extends EventEmitter {
         this.options.weightKg + this.options.startOffsetKg * (1 - progress)
       );
       this.step += 1;
+      this.lastWeightKg = weightKg;
       this.emit('packet', packets.buildMeasuringPacket({
         date: currentTimeInSeconds(),
         weightKg: weightKg
@@ -165,6 +226,7 @@ class Scale extends EventEmitter {
 
   finish() {
     this.running = false;
+    this.lastWeightKg = this.options.weightKg;
     this.emit('packet', packets.buildMeasuredPacket({
       historical: false,
       date: currentTimeInSeconds(),

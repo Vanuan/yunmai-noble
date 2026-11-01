@@ -205,6 +205,20 @@ class SimulatedLink extends EventEmitter {
     this._scale.unsubscribe();
     this.removeAllListeners();
   }
+
+  control() {
+    const scale = this._scale;
+    return {
+      state: function() { return scale.state(); },
+      setPowered: function(powered) { return scale.setPowered(powered); },
+      start: function() { return scale.start(); },
+      stop: function() { return scale.stop(); },
+      setWeightKg: function(weightKg) { return scale.setWeightKg(weightKg); },
+      setUser: function(userId) { return scale.setUser(userId); },
+      setUnit: function(unit) { return scale.setUnit(unit); },
+      sendHistory: function() { return scale.sendHistory(); }
+    };
+  }
 }
 
 function createLink(options) {

@@ -91,6 +91,60 @@ test('invalid and unsupported commands return error acks', function() {
   assert.equal(ack.data[0], packets.AckStatus.UNSUPPORTED);
 });
 
+test('power, weight, user, and history controls drive the scale', async function() {
+  const scale = new Scale({
+    autoStart: false,
+    repeat: false,
+    steps: 0,
+    intervalMs: 1,
+    weightKg: 7.5,
+    history: [{ date: 1500000000, weightKg: 7.2, userId: 7 }],
+    logger: SILENT_LOGGER
+  });
+
+  const received = [];
+  scale.on('packet', function(packet) {
+    received.push(protocol.parsePacket(packet));
+  });
+  scale.subscribe();
+
+  assert.equal(scale.state().powered, true);
+  scale.setPowered(false);
+  assert.equal(scale.state().powered, false);
+  assert.equal(scale.start(), false);
+
+  scale.setPowered(true);
+  scale.setWeightKg(81.2);
+  scale.setUser(4);
+  assert.equal(scale.state().weightKg, 81.2);
+  assert.equal(scale.start(), true);
+
+  await waitFor(function() {
+    return received.some(function(packet) {
+      return packet.packetType === protocol.PacketType.MEASURED;
+    });
+  }, 2000);
+
+  const measuredPacket = received.filter(function(packet) {
+    return packet.packetType === protocol.PacketType.MEASURED;
+  })[0];
+  const measured = protocol.parseWeightingCompleted(measuredPacket.data);
+  assert.equal(measured.weight, 8120);
+  assert.equal(measured.userId, 4);
+  assert.equal(scale.state().lastWeightKg, 81.2);
+
+  scale.sendHistory();
+  const historical = received.filter(function(packet) {
+    return packet.packetType === protocol.PacketType.MEASURED && packet.data[0] === 1;
+  });
+  assert.equal(historical.length, 1);
+  assert.equal(scale.state().history, 1);
+
+  scale.setPowered(false);
+  assert.equal(scale.state().running, false);
+  scale.unsubscribe();
+});
+
 test('completed measurements include the configured body metrics', async function() {
   const scale = new Scale({
     autoStart: false,

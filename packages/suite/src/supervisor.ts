@@ -236,15 +236,20 @@ export class DriverSupervisor {
 
     let child: Child;
     try {
+      const env: Record<string, string | undefined> = {
+        ...this.driverEnv,
+        BLE_DRIVER: record.driver,
+        NODE_ID: record.nodeId,
+        WS_PORT: String(driverPort(this.config, record.driver)),
+      };
+      if (record.driver === "simulator") {
+        env.SIMULATOR_CONTROL_PORT = String(this.config.simulatorControlPort);
+      }
+
       child = Bun.spawn({
         cmd: [runtime, NODE_SCRIPT],
         cwd: NODE_DIR,
-        env: {
-          ...this.driverEnv,
-          BLE_DRIVER: record.driver,
-          NODE_ID: record.nodeId,
-          WS_PORT: String(driverPort(this.config, record.driver)),
-        },
+        env,
         stdout: "inherit",
         stderr: "inherit",
         onExit: (_child, code, signal) => {

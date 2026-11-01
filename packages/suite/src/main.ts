@@ -33,6 +33,7 @@ async function main(): Promise<void> {
       handleSuiteRequest(request, url, {
         supervisor,
         ingests: app.ingests,
+        simulatorControlUrl: `http://127.0.0.1:${suiteConfig.simulatorControlPort}`,
       }),
   });
 
