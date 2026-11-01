@@ -47,8 +47,10 @@ API and live relay. The desktop client is still missing. See
   loopback control server and the suite proxies it at `/api/suite/simulator`.
 - `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
 - `apps/desktop`: Rust/GPUI read-only client using `gpui-unofficial`. It polls
-the historian and shows latest weight, service/upstream status, and history.
-- 81 Bun tests, 6 Rust tests, and `tsc --noEmit`.
+the historian and shows latest weight, service/upstream status, and history. It
+has client-side chrome (close, drag, resize) and a startup preflight that can
+start a `yunmai-noble.service` user unit or the dev suite.
+- 81 Bun tests, 8 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 

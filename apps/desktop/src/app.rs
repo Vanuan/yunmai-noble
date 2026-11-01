@@ -1,6 +1,9 @@
 use std::time::{Duration, SystemTime};
 
-use gpui::{Context, Div, FontWeight, Render, SharedString, Window, div, prelude::*, px, rgb};
+use gpui::{
+    Context, CursorStyle, Decorations, Div, FontWeight, MouseButton, Render, ResizeEdge,
+    SharedString, Stateful, Window, div, prelude::*, px, rgb,
+};
 
 use crate::api::{HistorianClient, Measurement};
 use crate::format::{format_age, format_timestamp, format_weight};
@@ -291,28 +294,164 @@ impl Dashboard {
 }
 
 impl Render for Dashboard {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let client_decorations = matches!(window.window_decorations(), Decorations::Client { .. });
+
         div()
-            .id("dashboard")
+            .id("window")
+            .relative()
             .size_full()
-            .overflow_y_scroll()
-            .bg(rgb(BG))
-            .text_color(rgb(TEXT))
-            .p(px(28.))
             .flex()
             .flex_col()
-            .gap_6()
-            .child(self.header())
-            .children(
-                self.error
-                    .as_deref()
-                    .or_else(|| self.upstream_error())
-                    .map(error_banner),
+            .bg(rgb(BG))
+            .text_color(rgb(TEXT))
+            .child(self.titlebar(client_decorations))
+            .child(
+                div()
+                    .id("content")
+                    .flex_1()
+                    .overflow_y_scroll()
+                    .p(px(28.))
+                    .flex()
+                    .flex_col()
+                    .gap_6()
+                    .child(self.header())
+                    .children(
+                        self.error
+                            .as_deref()
+                            .or_else(|| self.upstream_error())
+                            .map(error_banner),
+                    )
+                    .child(self.latest_card())
+                    .child(self.history_card())
+                    .child(self.footer()),
             )
-            .child(self.latest_card())
-            .child(self.history_card())
-            .child(self.footer())
+            .children(client_decorations.then(resize_handles))
     }
+}
+
+impl Dashboard {
+    fn titlebar(&self, client_decorations: bool) -> Stateful<Div> {
+        let bar = div()
+            .id("titlebar")
+            .flex_none()
+            .h(px(40.))
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_between()
+            .px_4()
+            .bg(rgb(BG))
+            .border_b_1()
+            .border_color(rgb(BORDER))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_xs()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(AMBER))
+                            .child("YUNMAI SCALE"),
+                    )
+                    .child(div().text_xs().text_color(rgb(MUTED)).child("yunmai-noble")),
+            )
+            .child(
+                div()
+                    .id("close-window")
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .h(px(24.))
+                    .w(px(24.))
+                    .rounded_md()
+                    .text_lg()
+                    .text_color(rgb(MUTED))
+                    .cursor(CursorStyle::PointingHand)
+                    .hover(|this| this.bg(rgb(RED).opacity(0.18)).text_color(rgb(RED)))
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .on_click(|_, window, _| window.remove_window())
+                    .child("×"),
+            );
+
+        if client_decorations {
+            bar.on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
+        } else {
+            bar
+        }
+    }
+}
+
+fn resize_handles() -> Div {
+    div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+        .child(resize_handle(
+            "resize-top",
+            ResizeEdge::Top,
+            CursorStyle::ResizeUpDown,
+            |div| div.top_0().left(px(10.)).right(px(10.)).h(px(6.)),
+        ))
+        .child(resize_handle(
+            "resize-bottom",
+            ResizeEdge::Bottom,
+            CursorStyle::ResizeUpDown,
+            |div| div.bottom_0().left(px(10.)).right(px(10.)).h(px(6.)),
+        ))
+        .child(resize_handle(
+            "resize-left",
+            ResizeEdge::Left,
+            CursorStyle::ResizeLeftRight,
+            |div| div.left_0().top(px(10.)).bottom(px(10.)).w(px(6.)),
+        ))
+        .child(resize_handle(
+            "resize-right",
+            ResizeEdge::Right,
+            CursorStyle::ResizeLeftRight,
+            |div| div.right_0().top(px(10.)).bottom(px(10.)).w(px(6.)),
+        ))
+        .child(resize_handle(
+            "resize-top-left",
+            ResizeEdge::TopLeft,
+            CursorStyle::ResizeUpLeftDownRight,
+            |div| div.top_0().left_0().size(px(10.)),
+        ))
+        .child(resize_handle(
+            "resize-top-right",
+            ResizeEdge::TopRight,
+            CursorStyle::ResizeUpRightDownLeft,
+            |div| div.top_0().right_0().size(px(10.)),
+        ))
+        .child(resize_handle(
+            "resize-bottom-left",
+            ResizeEdge::BottomLeft,
+            CursorStyle::ResizeUpRightDownLeft,
+            |div| div.bottom_0().left_0().size(px(10.)),
+        ))
+        .child(resize_handle(
+            "resize-bottom-right",
+            ResizeEdge::BottomRight,
+            CursorStyle::ResizeUpLeftDownRight,
+            |div| div.bottom_0().right_0().size(px(10.)),
+        ))
+}
+
+fn resize_handle(
+    id: &'static str,
+    edge: ResizeEdge,
+    cursor: CursorStyle,
+    style: impl FnOnce(Div) -> Div,
+) -> Stateful<Div> {
+    style(div()).id(id).absolute().cursor(cursor).on_mouse_down(
+        MouseButton::Left,
+        move |_, window, _| {
+            window.start_window_resize(edge);
+        },
+    )
 }
 
 fn badge(label: impl Into<SharedString>, tone: u32) -> Div {

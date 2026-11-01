@@ -1,14 +1,16 @@
 mod api;
 mod app;
 mod format;
+mod launcher;
 
 use gpui::{
-    App, AppContext, Bounds, KeyBinding, TitlebarOptions, WindowBounds, WindowOptions, actions, px,
-    size,
+    App, AppContext, Bounds, KeyBinding, TitlebarOptions, WindowBackgroundAppearance, WindowBounds,
+    WindowDecorations, WindowOptions, actions, px, size,
 };
 use gpui_platform::application;
 
 use crate::app::Dashboard;
+use crate::launcher::Autostart;
 
 actions!(yunmai_noble, [Quit]);
 
@@ -29,6 +31,16 @@ fn historian_url() -> String {
 
 fn main() {
     let historian_url = historian_url();
+    let autostart = if std::env::args().any(|argument| argument == "--no-autostart") {
+        Autostart::None
+    } else {
+        Autostart::from_env()
+    };
+
+    eprintln!(
+        "desktop: {}",
+        launcher::preflight(&historian_url, autostart)
+    );
 
     application().run(move |cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(980.), px(760.)), cx);
@@ -52,6 +64,8 @@ fn main() {
                     ..Default::default()
                 }),
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
+                window_background: WindowBackgroundAppearance::Opaque,
+                window_decorations: Some(WindowDecorations::Client),
                 ..Default::default()
             },
             move |_, cx| cx.new(|cx| Dashboard::new(historian_url.clone(), cx)),

@@ -61,12 +61,18 @@ pub struct HistorianClient {
 
 impl HistorianClient {
     pub fn new(base_url: impl Into<String>) -> Self {
+        Self::with_timeout(base_url, Duration::from_secs(3))
+    }
+
+    pub fn with_timeout(base_url: impl Into<String>, timeout: Duration) -> Self {
         let base_url = base_url.into().trim_end_matches('/').to_string();
-        let agent = ureq::AgentBuilder::new()
-            .timeout(Duration::from_secs(3))
-            .build();
+        let agent = ureq::AgentBuilder::new().timeout(timeout).build();
 
         Self { base_url, agent }
+    }
+
+    pub fn reachable(&self) -> bool {
+        self.get_health().is_ok()
     }
 
     pub fn snapshot(&self) -> Result<Snapshot, String> {

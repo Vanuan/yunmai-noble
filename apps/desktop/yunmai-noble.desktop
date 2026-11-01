@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Yunmai Noble
+Comment=Weight dashboard for Yunmai scales
+Exec=yunmai-noble-desktop
+Terminal=false
+Categories=Utility;Health;
+StartupNotify=true

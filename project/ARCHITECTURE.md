@@ -75,9 +75,11 @@ or ship it as a sidecar.
 `apps/desktop` is a Rust/GPUI client built on `gpui-unofficial`. It reads the
 historian's HTTP API (`/health`, `/api/measurements/latest`,
 `/api/measurements`) and never touches BLE, SQLite, or the node WebSocket. The
-first scaffold polls every two seconds; SSE live readings, a trend chart, and
-simulator controls come next. Packaging pairs it with the suite in the Ubuntu
-`.deb`.
+window uses client-side chrome (titlebar, close, drag, edge resize). A startup
+preflight probes `/health` and can start a `yunmai-noble.service` user unit or
+the dev suite before opening. The first scaffold polls every two seconds; SSE
+live readings, a trend chart, and simulator controls come next. Packaging pairs
+it with the suite in the Ubuntu `.deb`.
 
 ## Ports
 

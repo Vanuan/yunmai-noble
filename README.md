@@ -145,9 +145,11 @@ cargo run -p yunmai-noble-desktop        # or: bun run desktop
 
 Point it at another historian with `--historian <url>` or
 `YUNMAI_HISTORIAN_URL`. It uses only the HTTP API; BLE, SQLite, and the node
-WebSocket stay behind the historian. See
-[apps/desktop/README.md](apps/desktop/README.md) for requirements and the
-remaining SSE/trend/packaging work.
+WebSocket stay behind the historian. On startup it probes `/health` and, when
+the URL is loopback and nothing is running, starts a `yunmai-noble.service`
+user unit or the dev suite (`--no-autostart` / `YUNMAI_AUTOSTART=none` to
+disable). See [apps/desktop/README.md](apps/desktop/README.md) for requirements
+and the remaining SSE/trend/packaging work.
 
 ## BLE drivers
 
