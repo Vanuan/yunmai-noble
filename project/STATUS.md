@@ -69,7 +69,11 @@ that installs the service and the client together. See
   and desktop entries. The GUI is split out so headless hosts do not pull X11
   or GL libraries; the simulator shares the runtime and runs on port 3100 with
   its own database.
-- 152 Bun tests, 16 Rust tests, and `tsc --noEmit`.
+- Distribution: `.github/workflows/release.yml` builds `amd64` and `arm64`
+  packages on `v*` tags, signs an APT repository with `packaging/deb/repo.sh`,
+  deploys it to GitHub Pages under `/apt`, and attaches the `.deb` files to the
+  GitHub Release. See [DISTRIBUTION.md](DISTRIBUTION.md).
+- 152 Bun tests, 19 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
@@ -80,12 +84,13 @@ that installs the service and the client together. See
   driver; the default `.deb` omits them.
 - `dbus-sim`: the real `dbus` driver against a private mock BlueZ. Design in
   [DBUS_SIMULATOR.md](DBUS_SIMULATOR.md).
-- Publishing packages to a repository and building `arm64` in CI.
+- The first tagged release through the new workflow; it needs the
+  `GPG_PRIVATE_KEY` secret and Pages enabled.
 - Reconnect loop and packet validation in the node; the suite restarts exited
   drivers but does not resume a BLE session.
 - Remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
 - Cloud ingest and historian auth.
-- CI and linting.
+- Pull-request CI and linting; the release workflow runs only on tags.
 
 ## Known issues
 

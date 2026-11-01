@@ -186,6 +186,10 @@ simulator package is only needed for a second instance running in parallel.
 [packaging/deb/README.md](packaging/deb/README.md) for the layout, build
 flags, and glibc/architecture notes.
 
+Tagged releases publish a signed APT repository at
+`https://vanuan.github.io/yunmai-noble/apt` (suite `stable`) and `.deb` files
+on GitHub Releases; see [project/DISTRIBUTION.md](project/DISTRIBUTION.md).
+
 ## BLE drivers
 
 - `dbus` (default): needs BlueZ and the system D-Bus socket. On NixOS, enable

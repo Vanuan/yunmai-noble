@@ -35,11 +35,14 @@
   deployment.
 - **Deployment:** `run.sh` builds the default D-Bus image, or the legacy noble
   image with `./run.sh noble`. Images use Node/npm because Bun has no arm32
-  image. Ubuntu ships as two `dpkg-deb` packages built by
-  `packaging/deb/build.sh`: `yunmai-noble` (service, bundled Bun, UI, desktop
-  client) and `yunmai-noble-simulator` (same runtime, separate unit and
-  database). Target artifacts: Pi/HA, Docker cloud with an edge agent, NixOS
-  module; see [DEPLOYMENT.md](DEPLOYMENT.md).
+  image. Ubuntu ships as four `dpkg-deb` packages built by
+  `packaging/deb/build.sh`: `yunmai-noble` (service, bundled Bun, UI),
+  `yunmai-noble-desktop` (GPUI clients), `yunmai-noble-full` (metapackage), and
+  `yunmai-noble-simulator` (same runtime, separate unit and database). Tagged
+  releases publish a signed APT repository on GitHub Pages and archives on
+  GitHub Releases; see [DISTRIBUTION.md](DISTRIBUTION.md). Target artifacts:
+  Pi/HA, Docker cloud with an edge agent, NixOS module; see
+  [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Next steps
 
@@ -55,7 +58,8 @@
 7. Prototype `dbus-sim`: the real `dbus` driver against a private mock BlueZ on
    a private bus. This gives CI end-to-end coverage without an adapter; see
    [DBUS_SIMULATOR.md](DBUS_SIMULATOR.md).
-8. Add CI, including `arm64` package builds.
+8. Cut a `v*` tag to exercise the release workflow and publish the first signed
+   APT repository and GitHub Release.
 
 ## Open questions
 

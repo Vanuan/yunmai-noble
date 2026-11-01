@@ -87,6 +87,14 @@ Useful flags:
 the package; it requires Node 22 and does not load under Bun. The `dbus`
 driver is the only hardware path shipped.
 
+## Repository
+
+`packaging/deb/repo.sh` turns the built packages into a signed APT tree, and
+`.github/workflows/release.yml` publishes it to GitHub Pages under `/apt` and
+attaches the `.deb` files to a GitHub Release on every `v*` tag. See
+[project/DISTRIBUTION.md](../../project/DISTRIBUTION.md) for the channel,
+signing-key, and retention details.
+
 ## Install
 
 ```sh
