@@ -62,6 +62,24 @@ test('the link factory builds a simulator and rejects unknown drivers', function
   );
 });
 
+test('the link factory builds the dbus driver', function() {
+  const link = bluetooth.createLink({
+    driver: 'dbus',
+    createBluetooth: function() {
+      return {
+        bluetooth: {
+          defaultAdapter: async function() { throw new Error('no bus'); }
+        },
+        destroy: function() {}
+      };
+    },
+    logger: SILENT_LOGGER
+  });
+
+  assert.equal(typeof link.startScanning, 'function');
+  link.destroy();
+});
+
 test('simulator options are parsed from the environment', function() {
   const options = bluetooth.simulatorOptionsFromEnv({
     SIMULATOR_NAME: 'YUNMAI-ENV',

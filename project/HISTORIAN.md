@@ -4,8 +4,8 @@
 
 Collect measurements from one or more `yunmai-noble` nodes, persist them, and
 expose query APIs for UI clients (web, desktop, or other). The historian is a
-background Bun service: the "Weight historian" and "RESTful API" boxes in the
-[idea diagram](../README.md#idea).
+background Bun service and owns the persistence and HTTP/HTML/API boundaries
+from [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Non-goals
 

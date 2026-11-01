@@ -10,10 +10,13 @@ as JSON over WebSocket. The node runs on Node 22; Bun is the package manager,
 test runner, and TypeScript toolchain. Docker is only used for Raspberry Pi
 deployment.
 
-A UI client, the Weight historian, and the database from the
-[idea diagram](../README.md#idea) are not implemented. This repository
-currently contains the BLE node, an in-process scale simulator, and the
-historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
+The system is organized around three black-box boundaries: BLE (D-Bus/HCI),
+persistence (file/remote DB), and HTTP/HTML/API. Only adapters touch OS,
+database, or HTTP specifics; see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+The historian, persistence, and HTTP surface are not implemented. This
+repository currently contains the BLE node, an in-process scale simulator, and
+the design documents. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Layout
 
@@ -42,6 +45,9 @@ historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 - `bun test` runs 25 tests under Bun, including an end-to-end check that the
   app streams simulated weights over WebSocket.
 - `bun run typecheck` checks the TypeScript contract with `tsc --noEmit`.
+- `BLE_DRIVER=dbus` provides a noble-compatible BlueZ D-Bus driver: name
+  discovery, short-UUID expansion, GATT subscribe/write, and disconnect
+  polling.
 - `packages/contract/src/websocket.ts` defines the versioned WebSocket v1
   contract in zod; the format is specified in [WEBSOCKET.md](WEBSOCKET.md).
 
@@ -54,9 +60,10 @@ historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 - Disconnect calls `process.exit(0)`; recovery relies on Docker restart policy.
 - The device-name filter and UUIDs are hardcoded; the WebSocket port is set via
   `WS_PORT`.
-- `BLE_DRIVER` currently selects `noble` or `simulator`; the planned `dbus`
-  driver will add a pure-JS option. Bun cannot load the native noble transport,
-  so the real link still runs on Node 22. See
+- The `dbus` driver is scaffolded and unit-tested with mocks but has not been
+  validated against a real scale. `noble` remains the default.
+- Bun can run the `dbus` driver, but cannot load the native noble transport;
+  the real noble link still runs on Node 22. See
   [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md).
 - The deployment image uses npm instead of Bun because Bun publishes no arm32
   image.
@@ -69,13 +76,12 @@ historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 | Component | Status |
 | --- | --- |
 | yunmai scales | Hardware or simulator |
-| Bluetooth link | Implemented with noble; D-Bus migration planned |
+| BLE interface (D-Bus/HCI) | noble default; dbus scaffold |
 | yunmai-noble node | Partial |
-| Web socket | v1 contract defined; v0 still emitted |
-| UI client (web, desktop, ...) | Missing |
-| RESTful API | Designed |
+| WebSocket contract | v1 defined; v0 still emitted |
+| Persistence (SQLite/file) | Designed, not implemented |
 | Weight historian | Designed, not implemented |
-| Database | Designed (SQLite), not implemented |
+| HTTP/HTML/API surface | Missing |
 
 ## How to run
 

@@ -1,6 +1,7 @@
 # BLE transport migration plan
 
-Status: decided; not started.
+Status: decided; `BLE_DRIVER=dbus` scaffold implemented and unit-tested;
+real-scale validation pending.
 
 ## Decision
 
@@ -53,6 +54,18 @@ the fallback if D-Bus cannot provide the required GATT behavior.
 | `node-ble` over BlueZ D-Bus | Yes; pure JS fallback | Good; socket mount, no native build | Medium: rewrite scan/GATT layer | **Selected** |
 | `simpleble` (N-API) | Yes in principle | Native prebuilds; NixOS portability risk; older package | Medium | Deferred |
 | Node BLE worker + IPC | Bun app, Node child | Keeps native + Node runtime | Low | Fallback during migration |
+
+## Current implementation
+
+- `packages/node/src/bluetooth/dbus/index.js` implements the noble-compatible
+  link over `node-ble`: state events, discovery by name, UUID expansion,
+  connect, GATT service/characteristic lookup, notifications, writes, and
+  disconnect polling.
+- `BLE_DRIVER=dbus` selects it; `noble` remains the default.
+- `packages/node/test/dbus.test.js` tests the driver with an injected fake
+  `node-ble` client (no D-Bus required).
+- A smoke test against the host BlueZ bus reports `poweredOn`; a real scale has
+  not been tested yet.
 
 ## Driver selection
 
@@ -244,7 +257,8 @@ the container usually works; a non-root user needs the host policy entry.
 - **BlueZ/D-Bus permissions:** host policy and container user/group setup can
   block access even when the socket is mounted.
 - **Library age:** `node-ble` and especially `dbus-next@0.10.2` are older; pin
-  versions and be prepared to vendor a fix.
+  versions and be prepared to vendor a fix. The npm audit currently reports
+  transitive vulnerabilities through this chain.
 - **GATT differences:** discovery by name requires polling addresses; UUID
   expansion and BlueZ GATT caching may differ from noble.
 - **Notifications:** validate buffer boundaries and notification ordering with

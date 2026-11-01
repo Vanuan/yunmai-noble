@@ -21,6 +21,14 @@ The UI client may be a web app, a desktop app (for example GPUI), or any other
 consumer. The historian is a background Bun service that stores history and
 serves the REST API.
 
+## Architecture
+
+The system is organized around three black-box boundaries: the BLE hardware
+interface (D-Bus/HCI), persistence (file or remote database), and the
+HTTP/HTML/API surface used by humans and other systems. See
+[`project/ARCHITECTURE.md`](project/ARCHITECTURE.md) for the port/adapter view
+and package responsibilities.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -89,8 +97,17 @@ TypeScript types and zod schemas live in
 
 ## BLE transport
 
-The link is selected with `BLE_DRIVER`: `noble` (native HCI, Node 22 only),
-`dbus` (pure-JS BlueZ, target, Bun-compatible), or `simulator` (no hardware).
-The planned dual-driver migration is documented in
-[`project/BLE-TRANSPORT-MIGRATION.md`](project/BLE-TRANSPORT-MIGRATION.md).
+The link is selected with `BLE_DRIVER`: `noble` (native HCI, Node 22 only,
+default), `dbus` (pure-JS BlueZ, scaffold available, Bun-compatible), or
+`simulator` (no hardware).
+
+The `dbus` driver needs BlueZ running on the host and access to the system
+D-Bus socket:
+
+```
+$ BLE_DRIVER=dbus bun run dev
+```
+
+See [`project/BLE-TRANSPORT-MIGRATION.md`](project/BLE-TRANSPORT-MIGRATION.md)
+for requirements and the migration plan.
 

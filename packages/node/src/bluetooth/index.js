@@ -40,6 +40,10 @@ function createLink(options) {
     return require('@abandonware/noble');
   }
 
+  if (driver === 'dbus') {
+    return require('./dbus').createLink(options);
+  }
+
   if (driver === 'simulator') {
     const simulatorOptions = Object.assign(
       {},
@@ -49,7 +53,9 @@ function createLink(options) {
     return require('./simulator').createLink(simulatorOptions);
   }
 
-  throw new Error('Unknown BLE_DRIVER "' + driver + '" (expected "noble" or "simulator")');
+  throw new Error(
+    'Unknown BLE_DRIVER "' + driver + '" (expected "noble", "dbus" or "simulator")'
+  );
 }
 
 module.exports = {

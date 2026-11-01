@@ -4,6 +4,9 @@ Items are ordered by dependency, not priority.
 
 ## Decisions
 
+- **System boundaries:** BLE (D-Bus/HCI), persistence (file/remote DB), and
+  HTTP/HTML/API. Only adapters touch OS, database, or HTTP specifics. See
+  [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Monorepo:** node, contract, historian, and UI live under `packages/`.
 - **Persistence:** SQLite via `bun:sqlite`; revisit only if data volume grows.
 - **WebSocket contract:** v1 is defined in
@@ -28,17 +31,18 @@ Items are ordered by dependency, not priority.
    contract.
 2. Emit the v1 WebSocket contract from the node per
    [WEBSOCKET.md](WEBSOCKET.md).
-3. Implement the D-Bus BLE driver per
+3. Validate the scaffolded D-Bus driver on NixOS with a real scale, then make
+   it the default per
    [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md), keeping `noble`
-   selectable, and validate both on NixOS with a real scale.
+   selectable.
 4. Move noble/HCI to optional dependencies and add the legacy noble image.
 5. Add environment configuration for the node (`NODE_ID`, `HISTORIAN_URL`,
    device-name filter, UUIDs).
 6. Validate packet signature, length, and checksum before parsing.
 7. Replace `process.exit(0)` on disconnect with a scan-and-reconnect loop.
-8. Implement the Weight historian per [HISTORIAN.md](HISTORIAN.md) (REST API +
-   SQLite).
-9. Build a minimal UI client (web or desktop).
+7. Implement the Weight historian per [HISTORIAN.md](HISTORIAN.md):
+   persistence, HTTP JSON API, and served UI assets.
+8. Build a minimal UI client (web or desktop) against the HTTP surface.
 10. Add CI.
 
 ## Open questions
