@@ -12,7 +12,8 @@
   deployment.
 - **Deployment:** `run.sh` builds the default D-Bus image, or the legacy noble
   image with `./run.sh noble`. Images use Node/npm because Bun has no arm32
-  image.
+  image. Target artifacts: Pi/HA, Docker cloud with an edge agent, NixOS
+  module, Ubuntu `.deb`; see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Next steps
 
@@ -22,13 +23,18 @@
 4. Validate packet signatures and lengths; add the reconnect loop.
 5. Scaffold `packages/historian`: SQLite store, ingest, HTTP JSON API, and
    served UI assets.
-6. Build `packages/ui` against the HTTP surface.
-7. Add CI.
+6. Build the browser UI (`packages/ui`) and the Rust/GPUI desktop client
+   (`apps/desktop`) against the HTTP surface and live relay.
+7. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
+   Assistant, NixOS module, Ubuntu service + desktop `.deb`, and cloud ingest.
+8. Add CI.
 
 ## Open questions
 
 - Build the first UI client for web or desktop?
-- Should the historian relay live data, or should clients connect to the node?
+- Should the live relay be SSE only, or also WebSocket for commands?
+- Is GPUI ready for Ubuntu/Wayland, or should the desktop client use
+  Tauri/egui?
 - How should multiple nodes be identified?
 - Is historian authentication needed, or is network isolation sufficient?
 - Can arm32 be dropped so the node runs on Bun?

@@ -33,7 +33,8 @@ storage queries are internal.
 | `packages/contract` | v1 WebSocket schemas and types | BLE, DB, or HTTP code |
 | `packages/node` | BLE port, packet normalization, v1 publishing | Persistence or UI |
 | `packages/historian` | Ingest, store port, HTTP API, served UI assets | BLE/HCI code |
-| `packages/ui` | HTML/CSS/JS assets | Direct BLE or DB access |
+| `packages/ui` | HTML/CSS/JS assets for the browser UI | Direct BLE or DB access |
+| `apps/desktop` | Rust/GPUI desktop client | Direct BLE, DB, or systemd access |
 
 ## Ports
 
@@ -45,7 +46,8 @@ storage queries are internal.
 - **Persistence:** `MeasurementStore` with idempotent `insert`, `list`,
   `latest`, and `devices`. See [HISTORIAN.md](HISTORIAN.md).
 - **HTTP/HTML/API:** one server for JSON endpoints, static UI, health, CORS,
-  and an optional live relay. Any client can use the JSON API.
+  and a live SSE/WebSocket relay. Browser and GPUI desktop clients use the same
+  API; the desktop app never talks to the node or database directly.
 
 ## Data flow
 
@@ -53,8 +55,8 @@ storage queries are internal.
 2. The node publishes them over WebSocket.
 3. The historian validates with `@yunmai-noble/contract`, deduplicates, and
    stores them.
-4. The HTTP surface serves history and the UI; live data comes from the node
-   or an optional historian relay.
+4. The HTTP surface serves history and the UI; the historian relays live v1
+   messages over SSE for browser and desktop clients.
 
 ## Configuration
 
@@ -82,5 +84,5 @@ No test should require a Bluetooth adapter or an external database.
 
 - **Single host / Pi:** node and historian together, SQLite file, one HTTP port.
 - **Split:** node at the edge; historian and database remote.
-- **UI elsewhere:** historian exposes JSON; any web or desktop client is
-  deployed independently.
+- **Desktop:** Ubuntu `.deb` runs the service and a Rust/GPUI client that
+  connects to loopback HTTP.

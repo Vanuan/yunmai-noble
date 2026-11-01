@@ -86,7 +86,8 @@ Node 22 and npm so they work on arm32; Bun has no arm32 image.
 packages/node       BLE node, simulator, and tests
 packages/contract   WebSocket v1 schemas and types
 packages/historian  planned
-packages/ui         planned
+packages/ui         planned browser UI
+apps/desktop        planned Rust/GPUI desktop client
 project/            design and status documents
 ```
 
@@ -96,3 +97,4 @@ project/            design and status documents
   [Architecture](project/ARCHITECTURE.md)
 - [WebSocket contract](project/WEBSOCKET.md)
 - [Historian design](project/HISTORIAN.md)
+- [Deployment plan](project/DEPLOYMENT.md)

@@ -16,6 +16,7 @@ flowchart LR
     node["yunmai-noble"] -->|"WebSocket v1"| historian["Historian"]
     historian -->|"INSERT OR IGNORE"| db[("SQLite")]
     client["UI / API client"] -->|"HTTP"| historian
+    historian -->|"SSE live"| client
 ```
 
 The node still emits v0; adapt frames using the mapping in
@@ -81,6 +82,7 @@ measurements are lost until the scale replays them as historical packets.
 | `GET` | `/api/measurements` | History query |
 | `GET` | `/api/measurements/latest` | Latest measurement |
 | `GET` | `/api/devices` | Known devices |
+| `GET` | `/api/events` | SSE relay of live v1 messages |
 
 `GET /api/measurements` accepts `from`, `to`, `userId`, `limit` (1–500,
 default 100), and `before` (ISO 8601 cursor). Results are ordered by
@@ -105,6 +107,10 @@ default 100), and `before` (ISO 8601 cursor). Results are ordered by
   "next": "2026-10-31T08:00:00.000Z"
 }
 ```
+
+`GET /api/events` forwards `measurement.measuring` and
+`measurement.completed` to browser and desktop clients, so they do not need a
+separate connection to the node. Only completed measurements are stored.
 
 Errors use `{ "error": { "code": "...", "message": "..." } }`.
 
@@ -141,5 +147,5 @@ docker run -d --name historian \
 - Use parameterized SQL and restrict CORS in production.
 - Store tests: insert, duplicate collapse, filters, cursor paging.
 - Ingestion tests: fake `ws` server, malformed frames, reconnect.
-- HTTP tests: ephemeral port plus `fetch`.
+- HTTP tests: ephemeral port plus `fetch`; SSE relay tests with a fake node.
 - End-to-end: node simulator + historian + fake client.
