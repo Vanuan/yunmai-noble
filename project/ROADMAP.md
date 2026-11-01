@@ -8,6 +8,9 @@
 - **Contract:** v1 in [WEBSOCKET.md](WEBSOCKET.md); emitted by the node.
 - **BLE:** dual-driver via `BLE_DRIVER`: `dbus` default, `noble` optional
   legacy, `simulator` for tests.
+- **Clients:** browser UI first (React + Vite + Tailwind, `packages/ui`), then
+  a Rust/GPUI desktop app. The view model stays framework-neutral where easy,
+  but the web client is the UX reference rather than a strict abstraction.
 - **Local development:** Bun and Node run directly; Docker is only for Pi
   deployment.
 - **Deployment:** `run.sh` builds the default D-Bus image, or the legacy noble
@@ -20,8 +23,7 @@
 1. Validate the default D-Bus driver with a real scale on Linux/NixOS.
 2. Add remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
 3. Validate packet signatures and lengths; add the reconnect loop.
-4. Build the browser UI (`packages/ui`) and the Rust/GPUI desktop client
-   (`apps/desktop`) against the HTTP surface and live relay.
+4. Port the browser dashboard to Rust/GPUI (`apps/desktop`).
 5. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
    Assistant, NixOS module, Ubuntu service + desktop `.deb`, cloud ingest, and
    historian auth.
@@ -29,7 +31,6 @@
 
 ## Open questions
 
-- Build the first UI client for web or desktop?
 - Should the live relay be SSE only, or also WebSocket for commands?
 - Is GPUI ready for Ubuntu/Wayland, or should the desktop client use
   Tauri/egui?

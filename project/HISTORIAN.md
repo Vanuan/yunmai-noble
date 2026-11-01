@@ -10,7 +10,8 @@ service that owns the persistence and HTTP/HTML/API boundaries from
 Not in scope: BLE access, UI assets, accounts, or authentication.
 
 Implemented in `packages/historian` with SQLite, v1/v0 ingest, HTTP APIs, and
-SSE. The built-in status page is a placeholder until the real clients land.
+SSE. The historian serves the built browser UI from `packages/ui/dist` and
+falls back to a status page when no build is present.
 
 ## Flow
 

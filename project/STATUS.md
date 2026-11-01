@@ -10,8 +10,9 @@ WebSocket. The node runs on Node 22; Bun handles packages, tests, and
 TypeScript. Docker is only for Raspberry Pi deployment.
 
 The historian is implemented with SQLite, WebSocket ingest, HTTP JSON APIs, and
-an SSE relay. Browser and desktop clients are still missing. See
-[ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
+an SSE relay. A React browser dashboard consumes the API and live relay. The
+desktop client is still missing. See [ARCHITECTURE.md](ARCHITECTURE.md) and
+[ROADMAP.md](ROADMAP.md).
 
 ## Implemented
 
@@ -26,14 +27,16 @@ an SSE relay. Browser and desktop clients are still missing. See
   `measurement.completed`, and `error`, using `NODE_ID` as `deviceId`.
 - `packages/historian`: SQLite store, v1/v0 ingest, `/health`,
   `/api/measurements`, `/api/measurements/latest`, `/api/devices`, `/api/events`
-  (SSE), and a placeholder status page.
-- 50 Bun tests and `tsc --noEmit`.
+  (SSE), and static hosting for the built UI.
+- `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
+  chart, and history; `bun run ui` proxies to the historian.
+- 57 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
 ## Not implemented
 
-- Browser UI and Rust/GPUI desktop client.
+- Rust/GPUI desktop client.
 - Reconnect loop, packet validation, and remaining node configuration
   (`HISTORIAN_URL`, name filter, UUIDs).
 - Cloud ingest, historian auth, and deployment packaging.
@@ -48,8 +51,8 @@ an SSE relay. Browser and desktop clients are still missing. See
   AppArmor/SELinux policy may also need to allow D-Bus. The legacy image needs
   privileged HCI access.
 - `node-ble`/`dbus-next` report transitive npm audit findings.
-- The historian keeps a v0 adapter for older nodes; the built-in status page
-  is transitional.
+- The historian keeps a v0 adapter for older nodes; the fallback status page
+  remains for installations without a built UI.
 - SQLite is single-instance; cloud deployment will need Postgres.
 - Disconnect calls `process.exit(0)`; the device-name filter and UUIDs are
   hardcoded.

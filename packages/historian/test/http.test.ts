@@ -36,7 +36,7 @@ async function withApp(
   }
 }
 
-test("reports health and serves the placeholder page", async () => {
+test("reports health and serves the dashboard page", async () => {
   await withApp(async (_app, base) => {
     const health = await fetch(`${base}/health`);
     assert.equal(health.status, 200);

@@ -12,5 +12,6 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["bun", "node"]
   },
-  "include": ["packages/**/*.ts"]
+  "include": ["packages/**/*.ts"],
+  "exclude": ["packages/ui"]
 }

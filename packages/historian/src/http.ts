@@ -1,4 +1,7 @@
 import type { Server } from "bun";
+import { existsSync, statSync } from "node:fs";
+import { join, normalize, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { IngestClient, IngestStatus } from "./ingest";
 import type { Logger } from "./logger";
@@ -20,6 +23,8 @@ export interface HttpServerOptions {
   ingest: IngestClient | null;
   logger: Logger;
 }
+
+const UI_DIST = fileURLToPath(new URL("../../ui/dist", import.meta.url));
 
 const DISABLED_UPSTREAM: IngestStatus = {
   configured: false,
@@ -76,6 +81,13 @@ function toDto(row: MeasurementRow): MeasurementDto {
   };
 }
 
+function uiFile(pathname: string): string | null {
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const target = normalize(join(UI_DIST, relative));
+  if (!target.startsWith(UI_DIST + sep)) return null;
+  return existsSync(target) && statSync(target).isFile() ? target : null;
+}
+
 function queryObject(url: URL): Record<string, string> {
   const query: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {
@@ -111,6 +123,13 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
     }
 
     if (url.pathname === "/") {
+      const index = uiFile("/");
+      if (index) {
+        return new Response(Bun.file(index), {
+          headers: { ...cors, "Cache-Control": "no-store" },
+        });
+      }
+
       return new Response(INDEX_HTML, {
         headers: {
           ...cors,
@@ -199,6 +218,13 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
           "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",
         },
+      });
+    }
+
+    const asset = uiFile(url.pathname);
+    if (asset) {
+      return new Response(Bun.file(asset), {
+        headers: { ...cors, "Cache-Control": "public, max-age=31536000, immutable" },
       });
     }
 

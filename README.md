@@ -58,7 +58,17 @@ YUNMAI_WS_URL=ws://127.0.0.1:8080 \
 bun run historian
 ```
 
-Open `http://127.0.0.1:3000` for the built-in status page.
+Open `http://127.0.0.1:3000` for the dashboard.
+
+## Web UI
+
+The dashboard is React + Vite + Tailwind in `packages/ui`. Build it for the
+historian, or run the dev server with API proxying:
+
+```sh
+bun run build:ui
+bun run ui          # http://127.0.0.1:5173
+```
 
 ## BLE drivers
 
@@ -96,7 +106,7 @@ Node 22 and npm so they work on arm32; Bun has no arm32 image.
 packages/node       BLE node, simulator, and tests
 packages/contract   WebSocket v1 schemas and types
 packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
-packages/ui         planned browser UI
+packages/ui         React/Vite/Tailwind dashboard
 apps/desktop        planned Rust/GPUI desktop client
 project/            design and status documents
 ```

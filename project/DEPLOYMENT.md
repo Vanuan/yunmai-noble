@@ -167,8 +167,8 @@ SQLite, or the database directly.
 
 ## Milestones
 
-1. Historian and HTTP/SSE surface are done; finish the browser UI and GPUI
-   client.
+1. Historian and HTTP/SSE surface are done, and the browser UI is built;
+   finish the GPUI client.
 2. Harden node configuration, v1 emission, and reconnect behavior.
 3. Raspberry Pi single-host deployment plus HA REST integration.
 4. NixOS flake and module.
