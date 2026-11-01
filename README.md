@@ -1,6 +1,6 @@
 # yunmai-noble
 
-Yunmai scales BLE node, simulator, and weight historian.
+Yunmai scales BLE node, simulator, weight historian, and web dashboard.
 
 ## Idea
 
@@ -31,26 +31,27 @@ bun test
 bun run typecheck
 ```
 
-Real scale, default BlueZ D-Bus driver:
+## Run the whole suite
 
-```sh
-bun run start
-```
+The suite is three processes that can share one host: the node (BLE link and
+WebSocket source), the historian (SQLite, HTTP API, SSE), and the web app
+(served by the historian, or by Vite in development). This is the topology a
+desktop distribution will package as one unit.
 
-Legacy native `noble` driver on Node 22:
+| Process | Command | Endpoint |
+| --- | --- | --- |
+| Node + simulated scale | `BLE_DRIVER=simulator bun run dev` | `ws://127.0.0.1:8080` |
+| Historian | `bun run historian` | `http://127.0.0.1:3000` |
+| Web app (built) | `bun run build:ui` | `http://127.0.0.1:3000` |
+| Web app (dev server) | `bun run ui` | `http://127.0.0.1:5173` |
 
-```sh
-BLE_DRIVER=noble bun run start
-```
-
-Simulator, no hardware:
+Terminal 1, a simulated scale that emits a reading every few seconds:
 
 ```sh
 BLE_DRIVER=simulator bun run dev
-bun run simulate
 ```
 
-Historian, in a second terminal (accepts v1 and legacy v0 frames):
+Terminal 2, the historian subscribed to the node:
 
 ```sh
 DATABASE_PATH=./data/historian.sqlite \
@@ -58,17 +59,44 @@ YUNMAI_WS_URL=ws://127.0.0.1:8080 \
 bun run historian
 ```
 
-Open `http://127.0.0.1:3000` for the dashboard.
-
-## Web UI
-
-The dashboard is React + Vite + Tailwind in `packages/ui`. Build it for the
-historian, or run the dev server with API proxying:
+Build the dashboard once and open `http://127.0.0.1:3000`:
 
 ```sh
 bun run build:ui
-bun run ui          # http://127.0.0.1:5173
 ```
+
+For frontend work, run `bun run ui` instead; Vite proxies `/api` and `/health`
+to the historian on port 3000.
+
+Real hardware replaces the simulator without changing the rest of the suite:
+
+```sh
+BLE_DRIVER=dbus bun run start    # default BlueZ D-Bus driver
+BLE_DRIVER=noble bun run start   # legacy native HCI, Node 22 only
+```
+
+The node publishes on `WS_PORT` (default `8080`) as device `NODE_ID` (default
+`yunmai-noble`). The historian listens on `HISTORIAN_PORT=3000`; set
+`DATABASE_PATH` to a writable file (the default `/data/historian.sqlite` is
+meant for containers).
+
+## Simulator
+
+`BLE_DRIVER=simulator` runs a scale below the GATT layer inside the node. It
+repeats a weighing every few seconds and accepts the same commands as the
+hardware. Tune it with `SIMULATOR_WEIGHT_KG`, `SIMULATOR_STEPS`,
+`SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`, and `SIMULATOR_REPEAT`.
+
+`bun run simulate` is a separate interactive REPL that speaks the scale side of
+the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
+inspecting packets and acks, not for feeding the node.
+
+## Web UI
+
+The dashboard is React + Vite + Tailwind in `packages/ui`. It reads history from
+the HTTP API, follows live updates over SSE, and is served from
+`packages/ui/dist` by the historian. See
+[packages/ui/README.md](packages/ui/README.md) for GPUI portability notes.
 
 ## BLE drivers
 
