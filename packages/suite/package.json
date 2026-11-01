@@ -1,0 +1,19 @@
+{
+  "name": "@yunmai-noble/suite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "yunmai-noble": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@yunmai-noble/historian": "*"
+  }
+}

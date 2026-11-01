@@ -11,7 +11,9 @@ Not in scope: BLE access, UI assets, accounts, or authentication.
 
 Implemented in `packages/historian` with SQLite, v1/v0 ingest, HTTP APIs, and
 SSE. The historian serves the built browser UI from `packages/ui/dist` and
-falls back to a status page when no build is present.
+falls back to a status page when no build is present. It follows one or more
+nodes; `packages/suite` adds and removes sources as scale drivers start and
+stop.
 
 ## Flow
 
@@ -68,12 +70,13 @@ CREATE INDEX idx_measurements_user_date
 
 ## Ingestion
 
-1. Connect to `YUNMAI_WS_URL` with `ws`.
+1. Connect to each `YUNMAI_WS_URL` / `YUNMAI_WS_URLS` entry with `ws`.
 2. Parse JSON and validate with `ServerMessageSchema`.
 3. Keep only `measurement.completed`; use `deviceId` from the envelope.
 4. Insert with `INSERT OR IGNORE`; log ignored duplicates and malformed frames.
-5. Reconnect with exponential backoff (1–30 s) and ping/pong liveness.
-6. Expose connection state through `/health`.
+5. Reconnect with exponential backoff (1–30 s) and ping/pong liveness per source.
+6. Expose aggregate and per-source state through `/health` (`upstream`,
+   `upstreams`).
 
 The node does not buffer broadcasts. If the historian is down, live
 measurements are lost until the scale replays them as historical packets.
@@ -124,7 +127,7 @@ Errors use `{ "error": { "code": "...", "message": "..." } }`.
 | --- | --- | --- |
 | `HISTORIAN_HOST` / `HISTORIAN_PORT` | HTTP bind address | `0.0.0.0:3000` |
 | `DATABASE_PATH` | SQLite file | `/data/historian.sqlite` |
-| `YUNMAI_WS_URL` | Node WebSocket URL | required |
+| `YUNMAI_WS_URL` / `YUNMAI_WS_URLS` | Node WebSocket URL(s), comma-separated | unset |
 | `YUNMAI_DEVICE_ID` | Device id fallback for v0 frames | `yunmai-noble` |
 | `RECONNECT_MIN_MS` / `RECONNECT_MAX_MS` | Backoff bounds | `1000` / `30000` |
 | `CORS_ORIGIN` | Allowed client origin | `*` in development |

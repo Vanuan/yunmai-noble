@@ -21,7 +21,7 @@
       "name": "@yunmai-noble/historian",
       "version": "0.1.0",
       "dependencies": {
-        "@yunmai-noble/contract": "workspace:*",
+        "@yunmai-noble/contract": "*",
         "ws": "^8.22.1",
         "zod": "^4.6.7",
       },
@@ -42,6 +42,16 @@
       },
       "optionalDependencies": {
         "@abandonware/noble": "^1.9.2-26",
+      },
+    },
+    "packages/suite": {
+      "name": "@yunmai-noble/suite",
+      "version": "0.1.0",
+      "bin": {
+        "yunmai-noble": "./src/main.ts",
+      },
+      "dependencies": {
+        "@yunmai-noble/historian": "*",
       },
     },
     "packages/ui": {
@@ -214,6 +224,8 @@
     "@yunmai-noble/historian": ["@yunmai-noble/historian@workspace:packages/historian"],
 
     "@yunmai-noble/node": ["@yunmai-noble/node@workspace:packages/node"],
+
+    "@yunmai-noble/suite": ["@yunmai-noble/suite@workspace:packages/suite"],
 
     "@yunmai-noble/ui": ["@yunmai-noble/ui@workspace:packages/ui"],
 

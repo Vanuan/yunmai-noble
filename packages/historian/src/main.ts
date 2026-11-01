@@ -31,8 +31,8 @@ async function main(): Promise<void> {
     `historian: listening on http://${config.host}:${app.server.port}`
   );
   consoleLogger.log(
-    config.upstreamUrl
-      ? `historian: upstream ${config.upstreamUrl}`
+    config.upstreamUrls.length > 0
+      ? `historian: upstreams ${config.upstreamUrls.join(", ")}`
       : "historian: upstream disabled (YUNMAI_WS_URL is unset)"
   );
 

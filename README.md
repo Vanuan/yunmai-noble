@@ -1,6 +1,7 @@
 # yunmai-noble
 
-Yunmai scales BLE node, simulator, weight historian, and web dashboard.
+Yunmai scales BLE node, simulator, weight historian, web dashboard, and a
+single-executable suite that runs them together.
 
 ## Idea
 
@@ -33,58 +34,56 @@ bun run typecheck
 
 ## Run the whole suite
 
-The suite is three processes that can share one host: the node (BLE link and
-WebSocket source), the historian (SQLite, HTTP API, SSE), and the web app
-(served by the historian, or by Vite in development). This is the topology a
-desktop distribution will package as one unit.
+`bun run suite` is the single executable. It hosts the historian and web UI in
+one Bun process, then starts one node child process per scale driver. Every
+driver speaks the same v1 WebSocket contract, so the historian can follow any
+combination of them at once.
 
-| Process | Command | Endpoint |
+```sh
+bun run suite                              # dbus driver, UI at :3000
+SUITE_SCALES=simulator bun run suite       # no hardware
+SUITE_SCALES=dbus,simulator bun run suite  # real scale and simulation together
+```
+
+| Variable | Default | Meaning |
 | --- | --- | --- |
-| Node + simulated scale | `BLE_DRIVER=simulator bun run dev` | `ws://127.0.0.1:8080` |
-| Historian | `bun run historian` | `http://127.0.0.1:3000` |
-| Web app (built) | `bun run build:ui` | `http://127.0.0.1:3000` |
-| Web app (dev server) | `bun run ui` | `http://127.0.0.1:5173` |
+| `SUITE_SCALES` | `dbus` | Initial drivers: `dbus`, `simulator`, `noble` |
+| `SUITE_WS_PORT_BASE` | `8080` | Driver ports: dbus `base`, simulator `base+1`, noble `base+2` |
+| `SUITE_NODE_ID_PREFIX` | `scale` | Device identity is `prefix-driver` |
+| `SUITE_DRIVER_RESTART_MS` | `2000` | Restart delay after a driver exits; `0` disables |
+| `HISTORIAN_PORT`, `HISTORIAN_HOST` | `3000`, `0.0.0.0` | HTTP/UI bind address |
+| `DATABASE_PATH` | `./data/historian.sqlite` | SQLite file |
 
-Terminal 1, a simulated scale that emits a reading every few seconds:
+### Runtime driver switching
 
-```sh
-BLE_DRIVER=simulator bun run dev
-```
-
-Terminal 2, the historian subscribed to the node:
-
-```sh
-DATABASE_PATH=./data/historian.sqlite \
-YUNMAI_WS_URL=ws://127.0.0.1:8080 \
-bun run historian
-```
-
-Build the dashboard once and open `http://127.0.0.1:3000`:
+Drivers can be started and stopped without restarting the suite, so the
+simulator can feed the dashboard next to real hardware:
 
 ```sh
-bun run build:ui
+curl http://127.0.0.1:3000/api/suite
+curl -X POST http://127.0.0.1:3000/api/suite/drivers/simulator/start
+curl -X POST http://127.0.0.1:3000/api/suite/drivers/dbus/stop
 ```
 
-For frontend work, run `bun run ui` instead; Vite proxies `/api` and `/health`
-to the historian on port 3000.
+`GET /api/suite` returns each driver's state (`stopped`, `running`,
+`restarting`, ...), pid, port, device id, restart count, and upstream status.
+A crashed driver restarts after `SUITE_DRIVER_RESTART_MS` unless stopped.
 
-Real hardware replaces the simulator without changing the rest of the suite:
+Drivers are child processes so they stay isolated and can use different
+runtimes: `dbus` and `simulator` run under Bun, `noble` under Node 22. The
+historian and UI stay in the single Bun process. A desktop distribution can
+embed the same supervisor, or ship the suite as its sidecar.
 
-```sh
-BLE_DRIVER=dbus bun run start    # default BlueZ D-Bus driver
-BLE_DRIVER=noble bun run start   # legacy native HCI, Node 22 only
-```
-
-The node publishes on `WS_PORT` (default `8080`) as device `NODE_ID` (default
-`yunmai-noble`). The historian listens on `HISTORIAN_PORT=3000`; set
-`DATABASE_PATH` to a writable file (the default `/data/historian.sqlite` is
-meant for containers).
+The components can still run individually while developing: `bun run dev`
+(node only), `bun run historian`, `bun run ui`, and `bun run build:ui`. The
+suite builds `packages/ui/dist` on first run; rebuild it with
+`bun run build:ui` after UI changes.
 
 ## Simulator
 
-`BLE_DRIVER=simulator` runs a scale below the GATT layer inside the node. It
-repeats a weighing every few seconds and accepts the same commands as the
-hardware. Tune it with `SIMULATOR_WEIGHT_KG`, `SIMULATOR_STEPS`,
+`SUITE_SCALES=simulator` runs a scale below the GATT layer inside the node
+child. It repeats a weighing every few seconds and accepts the same commands as
+the hardware. Tune it with `SIMULATOR_WEIGHT_KG`, `SIMULATOR_STEPS`,
 `SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`, and `SIMULATOR_REPEAT`.
 
 `bun run simulate` is a separate interactive REPL that speaks the scale side of
@@ -134,6 +133,7 @@ Node 22 and npm so they work on arm32; Bun has no arm32 image.
 packages/node       BLE node, simulator, and tests
 packages/contract   WebSocket v1 schemas and types
 packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
+packages/suite      Single executable: historian + UI + driver supervisor
 packages/ui         React/Vite/Tailwind dashboard
 apps/desktop        planned Rust/GPUI desktop client
 project/            design and status documents

@@ -3,7 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import { join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { IngestClient, IngestStatus } from "./ingest";
+import type { IngestGroup } from "./ingest";
 import type { Logger } from "./logger";
 import {
   LatestQuerySchema,
@@ -14,29 +14,28 @@ import type { MeasurementRow, MeasurementStore } from "./store";
 import type { SseHub } from "./sse";
 import { INDEX_HTML } from "./index-page";
 
+export type ControlHandler = (
+  request: Request,
+  url: URL
+) => Promise<Response | null> | Response | null;
+
 export interface HttpServerOptions {
   host: string;
   port: number;
   corsOrigin: string;
   store: MeasurementStore;
   sse: SseHub;
-  ingest: IngestClient | null;
+  ingests: IngestGroup;
   logger: Logger;
+  control?: ControlHandler;
 }
 
 const UI_DIST = fileURLToPath(new URL("../../ui/dist", import.meta.url));
 
-const DISABLED_UPSTREAM: IngestStatus = {
-  configured: false,
-  connected: false,
-  lastMessageAt: null,
-  lastError: null,
-};
-
 function corsHeaders(corsOrigin: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": corsOrigin,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
   };
@@ -108,14 +107,24 @@ function validationMessage(error: {
 }
 
 export function startHttpServer(options: HttpServerOptions): Server<undefined> {
-  const { store, sse, ingest, logger, corsOrigin } = options;
+  const { store, sse, ingests, logger, corsOrigin } = options;
 
-  function handle(request: Request): Response {
+  async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const cors = corsHeaders(corsOrigin);
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: cors });
+    }
+
+    if (options.control) {
+      const controlled = await options.control(request, url);
+      if (controlled) {
+        for (const [name, value] of Object.entries(cors)) {
+          if (!controlled.headers.has(name)) controlled.headers.set(name, value);
+        }
+        return controlled;
+      }
     }
 
     if (request.method !== "GET") {
@@ -141,7 +150,12 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
 
     if (url.pathname === "/health") {
       const databaseOk = store.ping();
-      const upstream = ingest ? ingest.status() : DISABLED_UPSTREAM;
+      const upstreams = ingests.statuses().map(({ id, url, status }) => ({
+        id,
+        url,
+        ...status,
+      }));
+      const upstream = ingests.aggregate();
       const upstreamOk = !upstream.configured || upstream.connected;
       const ok = databaseOk && upstreamOk;
 
@@ -150,6 +164,7 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
           status: ok ? "ok" : "degraded",
           database: { ok: databaseOk },
           upstream,
+          upstreams,
         },
         ok ? 200 : 503,
         corsOrigin
@@ -234,9 +249,9 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
   return Bun.serve({
     hostname: options.host,
     port: options.port,
-    fetch(request) {
+    async fetch(request) {
       try {
-        return handle(request);
+        return await handle(request);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`historian: request failed: ${message}`);

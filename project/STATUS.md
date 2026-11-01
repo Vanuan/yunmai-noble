@@ -6,13 +6,15 @@ _Last updated: 2026-11-01_
 
 Bun workspace monorepo. The BLE node reads Yunmai scales through a selectable
 link (`dbus` default, `noble` legacy, `simulator`) and broadcasts JSON over
-WebSocket. The node runs on Node 22; Bun handles packages, tests, and
-TypeScript. Docker is only for Raspberry Pi deployment.
+WebSocket. `packages/suite` is the single executable: it hosts the historian and
+web UI in one Bun process, supervises one node child per driver, and starts or
+stops drivers at runtime. The node runs on Node 22; Bun handles the rest. Docker
+is only for Raspberry Pi deployment.
 
-The historian is implemented with SQLite, WebSocket ingest, HTTP JSON APIs, and
-an SSE relay. A React browser dashboard consumes the API and live relay. The
-desktop client is still missing. See [ARCHITECTURE.md](ARCHITECTURE.md) and
-[ROADMAP.md](ROADMAP.md).
+The historian is implemented with SQLite, WebSocket ingest from one or more
+nodes, HTTP JSON APIs, and an SSE relay. A React browser dashboard consumes the
+API and live relay. The desktop client is still missing. See
+[ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Implemented
 
@@ -28,24 +30,32 @@ desktop client is still missing. See [ARCHITECTURE.md](ARCHITECTURE.md) and
 - `packages/historian`: SQLite store, v1/v0 ingest, `/health`,
   `/api/measurements`, `/api/measurements/latest`, `/api/devices`, `/api/events`
   (SSE), and static hosting for the built UI.
+- `packages/suite`: single executable that hosts the historian and UI, starts
+  one node child per driver, restarts crashed drivers, and exposes
+  `GET /api/suite` plus `POST /api/suite/drivers/{driver}/{start,stop}`.
+- Multi-source ingest: the historian follows every configured upstream and
+  reports `upstream` plus per-source `upstreams` in `/health`.
 - `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
   chart, and history; `bun run ui` proxies to the historian.
-- 57 Bun tests and `tsc --noEmit`.
+- 68 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
 ## Not implemented
 
-- Rust/GPUI desktop client.
-- Reconnect loop, packet validation, and remaining node configuration
-  (`HISTORIAN_URL`, name filter, UUIDs).
+- Rust/GPUI desktop client and single-binary packaging.
+- Reconnect loop and packet validation in the node; the suite restarts exited
+  drivers but does not resume a BLE session.
+- Remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
 - Cloud ingest, historian auth, and deployment packaging.
 - CI and linting.
 
 ## Known issues
 
 - The default `dbus` driver has not been validated against a real scale.
-- Bun cannot load the legacy noble link; noble runs on Node 22.
+- Bun cannot load the legacy noble link; the suite runs `noble` under Node 22.
+  A compiled single-file build would need to ship the node scripts or a Bun
+  runtime.
 - Docker images use npm because Bun has no arm32 image.
 - The default image needs host BlueZ/D-Bus and the mounted socket; host
   AppArmor/SELinux policy may also need to allow D-Bus. The legacy image needs

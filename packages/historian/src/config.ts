@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   HISTORIAN_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_PATH: z.string().default("/data/historian.sqlite"),
   YUNMAI_WS_URL: z.string().optional(),
+  YUNMAI_WS_URLS: z.string().optional(),
   YUNMAI_DEVICE_ID: z.string().default("yunmai-noble"),
   RECONNECT_MIN_MS: z.coerce.number().int().min(10).default(1000),
   RECONNECT_MAX_MS: z.coerce.number().int().min(100).default(30000),
@@ -16,12 +17,30 @@ export interface HistorianConfig {
   host: string;
   port: number;
   databasePath: string;
-  upstreamUrl: string | null;
+  upstreamUrls: string[];
   deviceId: string;
   reconnectMinMs: number;
   reconnectMaxMs: number;
   corsOrigin: string;
   sseHeartbeatMs: number;
+}
+
+function parseUpstreams(
+  env: Record<string, string | undefined>
+): string[] {
+  const urls = [env.YUNMAI_WS_URL, env.YUNMAI_WS_URLS]
+    .filter((value): value is string => typeof value === "string")
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  for (const url of urls) {
+    if (!/^wss?:\/\//i.test(url)) {
+      throw new Error("YUNMAI_WS_URL(S) must start with ws:// or wss://");
+    }
+  }
+
+  return Array.from(new Set(urls));
 }
 
 export function loadConfig(
@@ -33,16 +52,11 @@ export function loadConfig(
     throw new Error("RECONNECT_MAX_MS must be greater than RECONNECT_MIN_MS");
   }
 
-  const upstreamUrl = parsed.YUNMAI_WS_URL?.trim() || null;
-  if (upstreamUrl && !/^wss?:\/\//i.test(upstreamUrl)) {
-    throw new Error("YUNMAI_WS_URL must start with ws:// or wss://");
-  }
-
   return {
     host: parsed.HISTORIAN_HOST,
     port: parsed.HISTORIAN_PORT,
     databasePath: parsed.DATABASE_PATH,
-    upstreamUrl,
+    upstreamUrls: parseUpstreams(env),
     deviceId: parsed.YUNMAI_DEVICE_ID,
     reconnectMinMs: parsed.RECONNECT_MIN_MS,
     reconnectMaxMs: parsed.RECONNECT_MAX_MS,

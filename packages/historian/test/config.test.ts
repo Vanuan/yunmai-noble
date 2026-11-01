@@ -8,7 +8,7 @@ test("uses defaults when environment is empty", () => {
     host: "0.0.0.0",
     port: 3000,
     databasePath: "/data/historian.sqlite",
-    upstreamUrl: null,
+    upstreamUrls: [],
     deviceId: "yunmai-noble",
     reconnectMinMs: 1000,
     reconnectMaxMs: 30000,
@@ -31,7 +31,7 @@ test("parses environment values", () => {
   });
 
   assert.equal(config.port, 4000);
-  assert.equal(config.upstreamUrl, "ws://127.0.0.1:8080");
+  assert.deepEqual(config.upstreamUrls, ["ws://127.0.0.1:8080"]);
   assert.equal(config.deviceId, "living-room");
   assert.equal(config.reconnectMinMs, 100);
   assert.equal(config.reconnectMaxMs, 2000);
@@ -39,13 +39,29 @@ test("parses environment values", () => {
   assert.equal(config.sseHeartbeatMs, 5000);
 });
 
-test("treats a blank upstream URL as disabled", () => {
-  assert.equal(loadConfig({ YUNMAI_WS_URL: "  " }).upstreamUrl, null);
+test("parses multiple upstreams and removes duplicates", () => {
+  const config = loadConfig({
+    YUNMAI_WS_URL: "ws://127.0.0.1:8080",
+    YUNMAI_WS_URLS: " ws://127.0.0.1:8081 , ws://127.0.0.1:8080 ,, ",
+  });
+
+  assert.deepEqual(config.upstreamUrls, [
+    "ws://127.0.0.1:8080",
+    "ws://127.0.0.1:8081",
+  ]);
+});
+
+test("treats blank upstream URLs as disabled", () => {
+  assert.deepEqual(loadConfig({ YUNMAI_WS_URL: "  " }).upstreamUrls, []);
 });
 
 test("rejects invalid upstream URLs and backoff bounds", () => {
   assert.throws(
     () => loadConfig({ YUNMAI_WS_URL: "http://example.com" }),
+    /YUNMAI_WS_URL/
+  );
+  assert.throws(
+    () => loadConfig({ YUNMAI_WS_URLS: "ws://ok.example, http://example.com" }),
     /YUNMAI_WS_URL/
   );
   assert.throws(

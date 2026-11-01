@@ -256,8 +256,138 @@ export class IngestClient {
   }
 
   private recordError(error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof (error as { message?: unknown } | null)?.message === "string"
+          ? String((error as { message: string }).message)
+          : String(error);
     this.lastError = message;
     this.logger.error(`historian: upstream error: ${message}`);
   }
+}
+
+export interface IngestSourceOptions {
+  id: string;
+  url: string;
+  deviceId: string;
+  reconnectMinMs: number;
+  reconnectMaxMs: number;
+}
+
+export interface IngestSourceStatus {
+  id: string;
+  url: string;
+  status: IngestStatus;
+}
+
+export interface IngestGroupDeps {
+  store: MeasurementStore;
+  sse: SseHub;
+  logger: Logger;
+  now?: () => Date;
+}
+
+export interface IngestGroup {
+  add(options: IngestSourceOptions): IngestClient;
+  addClient(id: string, url: string, client: IngestClient): void;
+  remove(id: string): boolean;
+  get(id: string): IngestClient | undefined;
+  statuses(): IngestSourceStatus[];
+  aggregate(): IngestStatus;
+  close(): void;
+}
+
+export const DISABLED_UPSTREAM: IngestStatus = {
+  configured: false,
+  connected: false,
+  lastMessageAt: null,
+  lastError: null,
+};
+
+export function aggregateStatus(statuses: IngestSourceStatus[]): IngestStatus {
+  if (statuses.length === 0) return { ...DISABLED_UPSTREAM };
+
+  let connected = true;
+  let lastMessageAt: string | null = null;
+  let lastError: string | null = null;
+
+  for (const { status } of statuses) {
+    if (!status.connected) connected = false;
+    if (
+      status.lastMessageAt &&
+      (lastMessageAt === null || status.lastMessageAt > lastMessageAt)
+    ) {
+      lastMessageAt = status.lastMessageAt;
+    }
+    lastError ??= status.lastError;
+  }
+
+  return { configured: true, connected, lastMessageAt, lastError };
+}
+
+// Owns one ingest client per upstream so the historian can follow several
+// scale drivers at once. The suite adds and removes sources as drivers start
+// and stop.
+export function createIngestGroup(deps: IngestGroupDeps): IngestGroup {
+  const sources = new Map<string, { url: string; client: IngestClient }>();
+
+  return {
+    add(options: IngestSourceOptions): IngestClient {
+      const existing = sources.get(options.id);
+      if (existing) return existing.client;
+
+      const client = new IngestClient({
+        url: options.url,
+        store: deps.store,
+        sse: deps.sse,
+        deviceId: options.deviceId,
+        reconnectMinMs: options.reconnectMinMs,
+        reconnectMaxMs: options.reconnectMaxMs,
+        logger: deps.logger,
+        now: deps.now,
+      });
+
+      sources.set(options.id, { url: options.url, client });
+      return client;
+    },
+
+    addClient(id: string, url: string, client: IngestClient): void {
+      sources.get(id)?.client.close();
+      sources.set(id, { url, client });
+    },
+
+    remove(id: string): boolean {
+      const source = sources.get(id);
+      if (!source) return false;
+      source.client.close();
+      sources.delete(id);
+      return true;
+    },
+
+    get(id: string): IngestClient | undefined {
+      return sources.get(id)?.client;
+    },
+
+    statuses(): IngestSourceStatus[] {
+      return Array.from(sources, ([id, source]) => ({
+        id,
+        url: source.url,
+        status: source.client.status(),
+      }));
+    },
+
+    aggregate(): IngestStatus {
+      return aggregateStatus(Array.from(sources, ([id, source]) => ({
+        id,
+        url: source.url,
+        status: source.client.status(),
+      })));
+    },
+
+    close(): void {
+      for (const { client } of sources.values()) client.close();
+      sources.clear();
+    },
+  };
 }

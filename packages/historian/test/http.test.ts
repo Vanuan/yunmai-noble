@@ -10,7 +10,7 @@ function config(overrides: Partial<HistorianConfig> = {}): HistorianConfig {
     host: "127.0.0.1",
     port: 0,
     databasePath: ":memory:",
-    upstreamUrl: null,
+    upstreamUrls: [],
     deviceId: "test-device",
     reconnectMinMs: 100,
     reconnectMaxMs: 1000,
@@ -49,6 +49,7 @@ test("reports health and serves the dashboard page", async () => {
         lastMessageAt: null,
         lastError: null,
       },
+      upstreams: [],
     });
 
     const page = await fetch(`${base}/`);
@@ -56,6 +57,35 @@ test("reports health and serves the dashboard page", async () => {
     assert.match(page.headers.get("content-type") ?? "", /text\/html/);
     assert.match(await page.text(), /yunmai-noble/);
   });
+});
+
+test("delegates suite control requests with CORS", async () => {
+  const app = startHistorian({
+    config: config(),
+    logger: silentLogger,
+    ingest: null,
+    control(request, url) {
+      if (url.pathname !== "/api/suite") return null;
+      if (request.method !== "GET") {
+        return new Response(null, { status: 405 });
+      }
+      return Response.json({ drivers: [] });
+    },
+  });
+
+  try {
+    const base = `http://127.0.0.1:${app.server.port}`;
+    const response = await fetch(`${base}/api/suite`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("access-control-allow-origin"), "*");
+    assert.deepEqual(await response.json(), { drivers: [] });
+
+    const rejected = await fetch(`${base}/api/suite`, { method: "POST" });
+    assert.equal(rejected.status, 405);
+    assert.equal(rejected.headers.get("access-control-allow-origin"), "*");
+  } finally {
+    await app.close();
+  }
 });
 
 test("returns measurements with filters and a cursor", async () => {

@@ -12,6 +12,7 @@
     "dev": "bun run --cwd packages/node dev",
     "simulate": "bun run --cwd packages/node simulate",
     "historian": "bun run packages/historian/src/main.ts",
+    "suite": "bun run packages/suite/src/main.ts",
     "ui": "bun run --cwd packages/ui dev",
     "build:ui": "bun run --cwd packages/ui build",
     "test": "bun test",

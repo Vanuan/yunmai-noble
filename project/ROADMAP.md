@@ -11,6 +11,11 @@
 - **Clients:** browser UI first (React + Vite + Tailwind, `packages/ui`), then
   a Rust/GPUI desktop app. The view model stays framework-neutral where easy,
   but the web client is the UX reference rather than a strict abstraction.
+- **Single executable:** `packages/suite` hosts the historian and UI in one Bun
+  process and supervises one node child per driver. `/api/suite` starts and
+  stops drivers at runtime, so simulated and real scales can feed one historian.
+- **Multi-source:** the historian follows every configured upstream and keys
+  measurements by the v1 `deviceId`.
 - **Local development:** Bun and Node run directly; Docker is only for Pi
   deployment.
 - **Deployment:** `run.sh` builds the default D-Bus image, or the legacy noble
@@ -23,7 +28,8 @@
 1. Validate the default D-Bus driver with a real scale on Linux/NixOS.
 2. Add remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
 3. Validate packet signatures and lengths; add the reconnect loop.
-4. Port the browser dashboard to Rust/GPUI (`apps/desktop`).
+4. Port the browser dashboard to Rust/GPUI (`apps/desktop`) and package
+   `packages/suite` as the desktop sidecar or single binary.
 5. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
    Assistant, NixOS module, Ubuntu service + desktop `.deb`, cloud ingest, and
    historian auth.
@@ -34,7 +40,9 @@
 - Should the live relay be SSE only, or also WebSocket for commands?
 - Is GPUI ready for Ubuntu/Wayland, or should the desktop client use
   Tauri/egui?
-- How should multiple nodes be identified?
+- Should the single executable embed the node scripts, or ship them alongside
+  a Bun runtime?
+- How should multiple nodes be identified and labelled in the UI?
 - Is historian authentication needed, or is network isolation sufficient?
 - Can arm32 be dropped so the node runs on Bun?
 - Should the node container run as root for D-Bus access?

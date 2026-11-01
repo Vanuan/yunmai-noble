@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/app.ts",
+    "./config": "./src/config.ts",
+    "./logger": "./src/logger.ts"
+  },
   "scripts": {
     "start": "bun run src/main.ts",
     "test": "bun test"

@@ -33,8 +33,20 @@ storage queries are internal.
 | `packages/contract` | v1 WebSocket schemas and types | BLE, DB, or HTTP code |
 | `packages/node` | BLE port, packet normalization, v1 publishing | Persistence or UI |
 | `packages/historian` | Ingest, store port, HTTP API, served UI assets | BLE/HCI code |
+| `packages/suite` | One executable: historian, UI, driver supervision, control API | BLE packet parsing or storage |
 | `packages/ui` | HTML/CSS/JS assets for the browser UI | Direct BLE or DB access |
 | `apps/desktop` | Rust/GPUI desktop client | Direct BLE, DB, or systemd access |
+
+## Single executable
+
+`packages/suite` hosts the historian and serves the built UI in one Bun process.
+Each scale driver is a child node process with a stable port and device id,
+communicating over the v1 WebSocket contract. This keeps drivers isolated and
+lets `noble` use Node 22 while everything else runs on Bun.
+
+The control surface at `/api/suite` starts and stops drivers at runtime, so
+simulated and real scales can feed the same historian concurrently. A desktop
+distribution can embed this supervisor or ship it as a sidecar.
 
 ## Ports
 
@@ -68,8 +80,11 @@ storage queries are internal.
 | `DATABASE_PATH` / `DATABASE_URL` | Persistence | Storage location |
 | `HISTORIAN_PORT`, `HISTORIAN_HOST` | HTTP | Bind address |
 | `CORS_ORIGIN` | HTTP | Allowed client origins |
-| `YUNMAI_WS_URL` | Internal | Node stream consumed by the historian |
+| `YUNMAI_WS_URL` / `YUNMAI_WS_URLS` | Internal | Node streams consumed by the historian |
 | `NODE_ID` | Contract | Device identity in v1 |
+| `SUITE_SCALES` | Internal | Drivers started by the suite |
+| `SUITE_WS_PORT_BASE` | Internal | First driver port |
+| `SUITE_DRIVER_RESTART_MS` | Internal | Driver restart delay |
 
 ## Testing
 

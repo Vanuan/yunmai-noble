@@ -2,7 +2,7 @@ import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { WebSocketServer } from "ws";
 
-import { IngestClient } from "../src/ingest";
+import { IngestClient, aggregateStatus } from "../src/ingest";
 import { silentLogger } from "../src/logger";
 import type { SseHub } from "../src/sse";
 import { SqliteStore } from "../src/store";
@@ -40,6 +40,46 @@ function fakeSse(): { sse: SseHub; messages: unknown[] } {
     messages,
   };
 }
+
+test("aggregates multiple upstream statuses", () => {
+  assert.deepEqual(aggregateStatus([]), {
+    configured: false,
+    connected: false,
+    lastMessageAt: null,
+    lastError: null,
+  });
+
+  assert.deepEqual(
+    aggregateStatus([
+      {
+        id: "simulator",
+        url: "ws://127.0.0.1:8081",
+        status: {
+          configured: true,
+          connected: true,
+          lastMessageAt: "2026-11-01T10:00:01.000Z",
+          lastError: null,
+        },
+      },
+      {
+        id: "dbus",
+        url: "ws://127.0.0.1:8080",
+        status: {
+          configured: true,
+          connected: false,
+          lastMessageAt: "2026-11-01T10:00:02.000Z",
+          lastError: "connection failed",
+        },
+      },
+    ]),
+    {
+      configured: true,
+      connected: false,
+      lastMessageAt: "2026-11-01T10:00:02.000Z",
+      lastError: "connection failed",
+    }
+  );
+});
 
 test("ingests v1 and legacy v0 measurements", async () => {
   const server = new WebSocketServer({ host: "127.0.0.1", port: 0 });
