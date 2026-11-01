@@ -5,7 +5,7 @@
 - **Monorepo:** node, contract, historian, and UI under `packages/`.
 - **Boundaries:** BLE (D-Bus/HCI), persistence (SQLite via `bun:sqlite`), and
   HTTP/HTML/API. See [ARCHITECTURE.md](ARCHITECTURE.md).
-- **Contract:** v1 in [WEBSOCKET.md](WEBSOCKET.md); the node still emits v0.
+- **Contract:** v1 in [WEBSOCKET.md](WEBSOCKET.md); emitted by the node.
 - **BLE:** dual-driver via `BLE_DRIVER`: `dbus` default, `noble` optional
   legacy, `simulator` for tests.
 - **Local development:** Bun and Node run directly; Docker is only for Pi
@@ -18,15 +18,14 @@
 ## Next steps
 
 1. Validate the default D-Bus driver with a real scale on Linux/NixOS.
-2. Emit the v1 contract from the node.
-3. Add node configuration (`NODE_ID`, `HISTORIAN_URL`, name filter, UUIDs).
-5. Validate packet signatures and lengths; add the reconnect loop.
-6. Build the browser UI (`packages/ui`) and the Rust/GPUI desktop client
+2. Add remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
+3. Validate packet signatures and lengths; add the reconnect loop.
+4. Build the browser UI (`packages/ui`) and the Rust/GPUI desktop client
    (`apps/desktop`) against the HTTP surface and live relay.
-7. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
+5. Add deployment artifacts from [DEPLOYMENT.md](DEPLOYMENT.md): Pi/Home
    Assistant, NixOS module, Ubuntu service + desktop `.deb`, cloud ingest, and
    historian auth.
-8. Add CI.
+6. Add CI.
 
 ## Open questions
 

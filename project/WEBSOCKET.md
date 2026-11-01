@@ -1,7 +1,7 @@
 # WebSocket message contract
 
-Status: draft v1. Schemas and tests exist; the node still emits v0 (mapping
-below). Source of truth:
+Status: v1 is implemented in the node and historian schemas. The v0 mapping
+below is retained for older nodes. Source of truth:
 [`packages/contract/src/websocket.ts`](../packages/contract/src/websocket.ts).
 
 ## Transport

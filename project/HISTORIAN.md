@@ -22,8 +22,8 @@ flowchart LR
     historian -->|"SSE live"| client
 ```
 
-The node still emits v0; the historian includes a transitional adapter using
-the mapping in [WEBSOCKET.md](WEBSOCKET.md) until the v1 emitter lands.
+The node emits v1; the historian retains a transitional v0 adapter for older
+deployments using the mapping in [WEBSOCKET.md](WEBSOCKET.md).
 
 ## Data model
 

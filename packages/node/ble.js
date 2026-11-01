@@ -1,12 +1,31 @@
 var noble = require('./src/bluetooth').createLink();
 var protocol = require('./src/yunmai/protocol');
+var messages = require('./src/yunmai/messages');
 const WebSocket = require('ws');
 
 const wsPort = Number(process.env.WS_PORT) || 8080;
-const wss = new WebSocket.Server({ port: wsPort });
+const deviceId = process.env.NODE_ID || 'yunmai-noble';
+const capabilities = [
+  'measurement.measuring',
+  'measurement.completed',
+  'status',
+  'error'
+];
 
-const broadcast = function broadcast(data) {
-  const stringData = JSON.stringify(data);
+const wss = new WebSocket.Server({ port: wsPort });
+let bluetoothState = 'unknown';
+let scanning = false;
+let peripheralName = null;
+let connectedPeripheral;
+
+function send(socket, message) {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  }
+}
+
+const broadcast = function broadcast(message) {
+  const stringData = JSON.stringify(message);
   wss.clients.forEach(function each(client) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(stringData);
@@ -14,13 +33,36 @@ const broadcast = function broadcast(data) {
   });
 };
 
+function broadcastStatus() {
+  broadcast(messages.buildStatusMessage(deviceId, {
+    bluetooth: bluetoothState,
+    scanning: scanning,
+    connected: Boolean(connectedPeripheral),
+    peripheralName: peripheralName
+  }));
+}
+
+wss.on('connection', function(socket) {
+  send(socket, messages.buildHelloMessage(deviceId, capabilities));
+  send(socket, messages.buildStatusMessage(deviceId, {
+    bluetooth: bluetoothState,
+    scanning: scanning,
+    connected: Boolean(connectedPeripheral),
+    peripheralName: peripheralName
+  }));
+});
+
 noble.on('stateChange', function(state) {
-  console.log('Bluetooth', state)
+  console.log('Bluetooth', state);
+  bluetoothState = state;
   if (state === 'poweredOn') {
+    scanning = true;
     noble.startScanning();
   } else {
+    scanning = false;
     noble.stopScanning();
   }
+  broadcastStatus();
 });
 
 noble.on('discover', function(peripheral) {
@@ -29,7 +71,10 @@ noble.on('discover', function(peripheral) {
   var localName = advertisement.localName;
   if(localName && localName.includes('YUNMAI')) {
     console.log('Yunmai scales detected')
+    scanning = false;
     noble.stopScanning();
+    peripheralName = localName;
+    broadcastStatus();
     explore(peripheral);
   }
 });
@@ -52,11 +97,16 @@ const discoverServices = (peripheral, serviceUUIDs) => {
 
 function explore(peripheral) {
   peripheral.on('disconnect', function() {
-    process.exit(0);
+    connectedPeripheral = null;
+    peripheralName = null;
+    broadcastStatus();
+    setTimeout(function() { process.exit(0); }, 50);
   });
 
   peripheral.connect(function(error) {
     connectedPeripheral = peripheral;
+    peripheralName = peripheral.advertisement.localName;
+    broadcastStatus();
     discoverServices(peripheral, ['ffe0']).then((services) => {
       if(services.length > 0) {
         return services[0];
@@ -78,7 +128,10 @@ function explore(peripheral) {
       characteristic.subscribe((error) => { if(error) console.log(error); });
       console.log('Waiting for weighting...')
     }).then(() => {
-    }).catch((err) => { console.log('error', err)});
+    }).catch((err) => {
+      console.log('error', err);
+      broadcast(messages.buildErrorMessage(deviceId, 'ble_error', String(err)));
+    });
   });
 }
 
@@ -88,13 +141,17 @@ function handleWeighting(data) {
   if(packet.packetType === protocol.PacketType.MEASURING) {
     const measuring = protocol.parseWeightingProgress(packet.data);
     display(measuring);
-    broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measuring', data: measuring });
+    broadcast(messages.buildMeasuringMessage(deviceId, measuring));
   } else if(packet.packetType === protocol.PacketType.MEASURED) {
     const measured = protocol.parseWeightingCompleted(packet.data);
     display(measured);
-    broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measured', data: measured });
+    broadcast(messages.buildCompletedMessage(deviceId, measured, packet.firmwareVersion));
   } else {
-    broadcast({ firmwareVersion: packet.firmwareVersion, data: packet.data, packetType: 'unknown' });
+    broadcast(messages.buildErrorMessage(
+      deviceId,
+      'unsupported_packet',
+      'Packet type ' + packet.packetType + ' is not supported'
+    ));
   }
 }
 
@@ -106,8 +163,6 @@ function display(data) {
   console.log(`[${new Date(data.date*1000)}] ${data.weight / 100} kg`);
 }
 
-let connectedPeripheral;
-
 process.on('SIGINT', function() {
   if(connectedPeripheral) {
     console.log( "Disconnecting..." );
@@ -116,4 +171,3 @@ process.on('SIGINT', function() {
     process.exit(0);
   }
 })
-

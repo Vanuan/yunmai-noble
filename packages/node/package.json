@@ -18,5 +18,8 @@
   },
   "optionalDependencies": {
     "@abandonware/noble": "^1.9.2-26"
+  },
+  "devDependencies": {
+    "@yunmai-noble/contract": "*"
   }
 }
