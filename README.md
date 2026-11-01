@@ -49,7 +49,8 @@ SUITE_SCALES=dbus,simulator bun run suite  # real scale and simulation together
 
 `lab.toml` is committed for hardware-free development: loopback bind,
 simulator only, and no auto-start or repeat, so each weighing starts from the
-simulator console.
+simulator console. Open `http://127.0.0.1:3000/` for the dashboard and
+`http://127.0.0.1:3000/simulator/` for the virtual scale.
 
 ## Configuration
 
@@ -66,7 +67,6 @@ database_path = "./data/historian.sqlite"
 
 [drivers]
 initial = ["dbus", "simulator"]
-port_base = 8080
 node_id_prefix = "scale"
 restart_ms = 2000
 
@@ -76,10 +76,10 @@ weight_kg = 7.5
 
 Environment variables override the file, which keeps containers and systemd
 units simple: `HISTORIAN_PORT`, `HISTORIAN_HOST`, `DATABASE_PATH`,
-`SUITE_SCALES`, `SUITE_WS_PORT_BASE`, `SUITE_NODE_ID_PREFIX`,
-`SUITE_DRIVER_RESTART_MS`, and `SIMULATOR_*`. The example file lists every
-supported key. Standalone `bun run historian` and `bun run dev` remain
-driven by environment variables only.
+`SUITE_SCALES`, `SUITE_NODE_ID_PREFIX`, `SUITE_DRIVER_RESTART_MS`, and
+`SIMULATOR_*`. The example file lists every supported key. Standalone
+`bun run historian` and `bun run dev` remain driven by environment variables
+only.
 
 ### Runtime driver switching
 
@@ -93,8 +93,13 @@ curl -X POST http://127.0.0.1:3000/api/suite/drivers/dbus/stop
 ```
 
 `GET /api/suite` returns each driver's state (`stopped`, `running`,
-`restarting`, ...), pid, port, device id, restart count, and upstream status.
-A crashed driver restarts after `drivers.restart_ms` unless stopped.
+`restarting`, ...), pid, current loopback URLs, device id, restart count, and
+upstream status. A crashed driver restarts after `drivers.restart_ms` unless
+stopped. Driver ports are chosen by the OS on every start, so a stale process
+or another service cannot pin them; restarts pick fresh ports.
+
+Driver children exit when the suite closes their stdin, so a crashed or killed
+suite does not leave processes holding ports.
 
 Drivers are child processes so they stay isolated and can use different
 runtimes: `dbus` and `simulator` run under Bun, `noble` under Node 22. The
@@ -119,9 +124,9 @@ seconds and accepts the same commands as the hardware. Tune it under
 the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
 inspecting packets and acks, not for feeding the node.
 
-When the driver runs under the suite, the dashboard shows a simulator scale:
-power switch, weight and user fields, Step on / Step off, and Replay history.
-The same controls are available as JSON:
+The virtual scale has its own page at `/simulator/`, separate from the
+dashboard: power switch, weight and user fields, Step on / Step off, and Replay
+history. The same controls are available as JSON:
 
 ```sh
 GET  /api/suite/simulator
@@ -130,10 +135,15 @@ POST /api/suite/simulator/{start,stop,power,weight,user,history}
 
 ## Web UI
 
-The dashboard is React + Vite + Tailwind in `packages/ui`. It reads history from
-the HTTP API, follows live updates over SSE, and is served from
-`packages/ui/dist` by the historian. See
-[packages/ui/README.md](packages/ui/README.md) for GPUI portability notes.
+The historian serves two React + Vite + Tailwind entries from `packages/ui`:
+
+- `/` dashboard: history from the HTTP API and live updates over SSE.
+- `/simulator/` virtual scale: controls the simulator driver, with a live
+  weight display.
+
+Both are built into `packages/ui/dist`. See
+[packages/ui/README.md](packages/ui/README.md) for development and GPUI
+portability notes.
 
 ## BLE drivers
 

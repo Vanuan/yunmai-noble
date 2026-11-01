@@ -173,15 +173,38 @@ function display(data) {
   console.log(`[${new Date(data.date*1000)}] ${data.weight / 100} kg`);
 }
 
-process.on('SIGINT', function() {
+var shuttingDown = false;
+
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
   if (simulatorControl) {
     simulatorControl.close();
     simulatorControl = null;
   }
-  if(connectedPeripheral) {
-    console.log( "Disconnecting..." );
+
+  // Do not hang forever if a disconnect never completes.
+  var force = setTimeout(function() { process.exit(0); }, 1000);
+  if (force.unref) force.unref();
+
+  if (connectedPeripheral) {
+    console.log('Disconnecting...');
     connectedPeripheral.disconnect();
   } else {
     process.exit(0);
   }
-})
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('SIGHUP', shutdown);
+
+// The suite holds stdin open and closes it when it exits. Without this, a
+// suite killed abruptly can leave a driver holding its WebSocket and control
+// ports, which then breaks the next run.
+if (process.env.SUITE_MANAGED === '1' && process.stdin) {
+  process.stdin.on('end', shutdown);
+  process.stdin.on('close', shutdown);
+  process.stdin.resume();
+}

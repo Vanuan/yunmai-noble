@@ -9,11 +9,14 @@
 - **BLE:** dual-driver via `BLE_DRIVER`: `dbus` default, `noble` optional
   legacy, `simulator` for tests.
 - **Clients:** browser UI first (React + Vite + Tailwind, `packages/ui`), then
-  a Rust/GPUI desktop app. The view model stays framework-neutral where easy,
-  but the web client is the UX reference rather than a strict abstraction.
+  a Rust/GPUI desktop app. The dashboard and the virtual scale are separate web
+  app entries (`/` and `/simulator/`), so demo controls stay out of the product
+  surface. The view model stays framework-neutral where easy, but the web
+  client is the UX reference rather than a strict abstraction.
 - **Single executable:** `packages/suite` hosts the historian and UI in one Bun
-  process and supervises one node child per driver. `/api/suite` starts and
-  stops drivers at runtime, so simulated and real scales can feed one historian.
+  process and supervises one node child per driver on OS-assigned loopback
+  ports. `/api/suite` starts and stops drivers at runtime, so simulated and
+  real scales can feed one historian.
 - **Multi-source:** the historian follows every configured upstream and keys
   measurements by the v1 `deviceId`.
 - **Configuration:** `yunmai-noble.toml` with environment overrides, so the

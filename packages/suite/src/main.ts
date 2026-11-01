@@ -33,7 +33,6 @@ async function main(): Promise<void> {
       handleSuiteRequest(request, url, {
         supervisor,
         ingests: app.ingests,
-        simulatorControlUrl: `http://127.0.0.1:${suiteConfig.simulatorControlPort}`,
       }),
   });
 
@@ -77,6 +76,9 @@ async function main(): Promise<void> {
   });
   process.on("SIGTERM", () => {
     void shutdown("SIGTERM");
+  });
+  process.on("SIGHUP", () => {
+    void shutdown("SIGHUP");
   });
 
   consoleLogger.log(

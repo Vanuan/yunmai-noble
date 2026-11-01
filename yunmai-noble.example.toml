@@ -18,10 +18,8 @@ database_path = "./data/historian.sqlite"
 
 [drivers]
 initial = ["dbus"]            # dbus, simulator, noble
-port_base = 8080              # dbus, +1 simulator, +2 noble
 node_id_prefix = "scale"      # device id is <prefix>-<driver>
 restart_ms = 2000             # restart delay after a crash; 0 disables
-# simulator_control_port = 8180  # loopback control port for the scale console
 
 [simulator]
 # name = "YUNMAI-SIM"

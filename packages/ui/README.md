@@ -1,34 +1,44 @@
-# Web client
+# Web clients
 
-React + Vite + Tailwind dashboard for the historian API and SSE relay.
+React + Vite + Tailwind entries for the historian API and SSE relay:
+
+- `/` — dashboard with history, trend, and live readings.
+- `/simulator/` — virtual scale controlling the simulator driver.
+
+Both are built from this package as separate HTML entries.
 
 ## Development
 
-Start the historian, then the Vite dev server:
+Start the suite (or a historian) with the simulator driver, then the Vite dev
+server:
 
 ```sh
-bun run historian   # http://127.0.0.1:3000
+bun run lab         # http://127.0.0.1:3000
 bun run ui          # http://127.0.0.1:5173
 ```
 
-Vite proxies `/api` and `/health` to the historian.
+- Dashboard: `http://127.0.0.1:5173/`
+- Simulator: `http://127.0.0.1:5173/simulator/`
+
+Vite proxies `/api` and `/health` to port 3000.
 
 ## Production
 
 ```sh
 bun run build:ui
-bun run historian
+bun run suite
 ```
 
 The historian serves `packages/ui/dist` when present and falls back to its
-placeholder page otherwise.
+placeholder page otherwise. `/simulator` redirects to `/simulator/`.
 
 ## GPUI portability
 
 This is a web client first, but the view layer is intentionally plain:
 
 - Components in `src/components/` are presentational "templates".
-- State lives in `src/hooks/useDashboard.ts`.
+- Dashboard state lives in `src/hooks/useDashboard.ts`; the simulator page uses
+  `SimulatorPanel` plus a live-weight hook.
 - Layout uses flex/grid and spacing tokens rather than web-specific tricks.
 - Brand colors and spacing map naturally to GPUI theme constants.
 - Only `fetch` and `EventSource` are browser-specific; the view model can be

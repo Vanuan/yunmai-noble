@@ -6,7 +6,6 @@ import type { DriverSupervisor, DriverView } from "./supervisor";
 export interface SuiteControlOptions {
   supervisor: DriverSupervisor;
   ingests: IngestGroup;
-  simulatorControlUrl: string;
 }
 
 interface DriverResponse extends DriverView {
@@ -49,7 +48,11 @@ async function proxySimulator(
     .list()
     .find((entry) => entry.driver === "simulator");
 
-  if (!driver || (driver.state !== "running" && driver.state !== "starting")) {
+  if (
+    !driver ||
+    !driver.controlUrl ||
+    (driver.state !== "running" && driver.state !== "starting")
+  ) {
     return error(
       409,
       "simulator_not_running",
@@ -68,7 +71,7 @@ async function proxySimulator(
   }
 
   try {
-    const response = await fetch(`${options.simulatorControlUrl}${path}`, init);
+    const response = await fetch(`${driver.controlUrl}${path}`, init);
     return new Response(await response.text(), {
       status: response.status,
       headers: { "Content-Type": "application/json; charset=utf-8" },

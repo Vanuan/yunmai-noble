@@ -13,6 +13,7 @@ function view(overrides: Partial<DriverView> = {}): DriverView {
     driver: "simulator",
     nodeId: "scale-simulator",
     url: "ws://127.0.0.1:8081",
+    controlUrl: null,
     desired: false,
     state: "stopped",
     pid: null,
@@ -71,14 +72,10 @@ function request(method: string, path: string, body?: unknown): Request {
   });
 }
 
-function options(
-  controlUrl = "http://127.0.0.1:1",
-  driver: Partial<DriverView> = {}
-) {
+function options(driver: Partial<DriverView> = {}) {
   return {
     supervisor: supervisor(driver),
     ingests: ingests(),
-    simulatorControlUrl: controlUrl,
   };
 }
 
@@ -171,7 +168,7 @@ test("proxies simulator commands to the simulator node", async () => {
     const state = await handleSuiteRequest(
       request("GET", "/api/suite/simulator"),
       url("/api/suite/simulator"),
-      options(controlUrl)
+      options({ controlUrl })
     );
     assert.equal(state?.status, 200);
     assert.deepEqual(await state?.json(), { powered: true, running: false });
@@ -179,7 +176,7 @@ test("proxies simulator commands to the simulator node", async () => {
     const weighted = await handleSuiteRequest(
       request("POST", "/api/suite/simulator/weight", { kg: 80 }),
       url("/api/suite/simulator/weight"),
-      options(controlUrl)
+      options({ controlUrl })
     );
     assert.equal(weighted?.status, 200);
 
@@ -196,14 +193,14 @@ test("reports a stopped or unreachable simulator", async () => {
   const stopped = await handleSuiteRequest(
     request("GET", "/api/suite/simulator"),
     url("/api/suite/simulator"),
-    options("http://127.0.0.1:1", { state: "stopped" })
+    options({ state: "stopped", controlUrl: "http://127.0.0.1:1" })
   );
   assert.equal(stopped?.status, 409);
 
   const unreachable = await handleSuiteRequest(
     request("GET", "/api/suite/simulator"),
     url("/api/suite/simulator"),
-    options("http://127.0.0.1:1")
+    options({ controlUrl: "http://127.0.0.1:1" })
   );
   assert.equal(unreachable?.status, 503);
 });

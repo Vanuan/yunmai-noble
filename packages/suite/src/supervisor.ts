@@ -1,5 +1,5 @@
+import { connect, createServer } from "node:net";
 import { dirname } from "node:path";
-import { connect } from "node:net";
 import { fileURLToPath } from "node:url";
 
 import type { Logger } from "@yunmai-noble/historian/logger";
@@ -7,7 +7,6 @@ import type { Logger } from "@yunmai-noble/historian/logger";
 import {
   DRIVERS,
   driverNodeId,
-  driverPort,
   type DriverName,
   type SuiteConfig,
 } from "./config";
@@ -35,6 +34,24 @@ function canConnect(port: number): Promise<boolean> {
   });
 }
 
+// Let the OS pick a free loopback port. Driver ports are internal to the
+// suite, so a stable number buys nothing and stale processes can hold one.
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.unref();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve(port);
+      });
+    });
+  });
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -53,6 +70,7 @@ export interface DriverView {
   driver: DriverName;
   nodeId: string;
   url: string;
+  controlUrl: string | null;
   desired: boolean;
   state: DriverState;
   pid: number | null;
@@ -70,6 +88,7 @@ interface DriverRecord {
   driver: DriverName;
   nodeId: string;
   url: string;
+  controlUrl: string | null;
   desired: boolean;
   state: DriverState;
   pid: number | null;
@@ -130,7 +149,8 @@ export class DriverSupervisor {
       this.records.set(driver, {
         driver,
         nodeId: driverNodeId(this.config, driver),
-        url: `ws://127.0.0.1:${driverPort(this.config, driver)}`,
+        url: "",
+        controlUrl: null,
         desired: false,
         state: "stopped",
         pid: null,
@@ -158,10 +178,14 @@ export class DriverSupervisor {
     const record = this.require(driver);
     record.desired = true;
 
-    if (record.child) return this.view(record);
+    if (record.child || record.state === "starting") {
+      return this.view(record);
+    }
 
     this.clearRestart(record);
-    this.spawn(record);
+    record.state = "starting";
+    record.error = null;
+    void this.spawn(record);
     return this.view(record);
   }
 
@@ -172,6 +196,8 @@ export class DriverSupervisor {
     this.notifyStop(record, "stopped");
 
     if (!record.child) {
+      record.token = null;
+      record.controlUrl = null;
       record.state = "stopped";
       return this.view(record);
     }
@@ -202,6 +228,8 @@ export class DriverSupervisor {
 
     const child = record.child;
     if (!child) {
+      record.token = null;
+      record.controlUrl = null;
       record.state = "stopped";
       return;
     }
@@ -219,20 +247,39 @@ export class DriverSupervisor {
     }
   }
 
-  private spawn(record: DriverRecord): void {
+  private async spawn(record: DriverRecord): Promise<void> {
+    const token = {};
+    record.token = token;
+    record.controlUrl = null;
+    record.state = "starting";
+    record.error = null;
+
     const runtime =
       record.driver === "noble" ? this.nodeRuntime : this.bunRuntime;
 
     if (!runtime) {
-      record.state = "failed";
-      record.desired = false;
-      record.error = "BLE_DRIVER=noble requires node on PATH";
-      this.notifyStop(record, "exited");
+      this.fail(record, "BLE_DRIVER=noble requires node on PATH");
       return;
     }
 
-    record.state = "starting";
-    record.error = null;
+    let wsPort: number;
+    let controlPort: number | null = null;
+
+    try {
+      wsPort = await freePort();
+      if (record.driver === "simulator") {
+        controlPort = await freePort();
+      }
+    } catch (error) {
+      if (record.token === token) this.fail(record, error);
+      return;
+    }
+
+    if (record.token !== token || !record.desired) return;
+
+    record.url = `ws://127.0.0.1:${wsPort}`;
+    record.controlUrl =
+      controlPort === null ? null : `http://127.0.0.1:${controlPort}`;
 
     let child: Child;
     try {
@@ -240,16 +287,20 @@ export class DriverSupervisor {
         ...this.driverEnv,
         BLE_DRIVER: record.driver,
         NODE_ID: record.nodeId,
-        WS_PORT: String(driverPort(this.config, record.driver)),
+        WS_PORT: String(wsPort),
+        SUITE_MANAGED: "1",
       };
-      if (record.driver === "simulator") {
-        env.SIMULATOR_CONTROL_PORT = String(this.config.simulatorControlPort);
+      if (controlPort !== null) {
+        env.SIMULATOR_CONTROL_PORT = String(controlPort);
       }
 
       child = Bun.spawn({
         cmd: [runtime, NODE_SCRIPT],
         cwd: NODE_DIR,
         env,
+        // The child watches stdin and exits if the suite disappears. Without
+        // this, a killed suite can leave a driver holding ports and restarting.
+        stdin: "pipe",
         stdout: "inherit",
         stderr: "inherit",
         onExit: (_child, code, signal) => {
@@ -257,10 +308,7 @@ export class DriverSupervisor {
         },
       });
     } catch (error) {
-      record.state = "failed";
-      record.desired = false;
-      record.error = error instanceof Error ? error.message : String(error);
-      this.notifyStop(record, "exited");
+      if (record.token === token) this.fail(record, error);
       return;
     }
 
@@ -270,15 +318,12 @@ export class DriverSupervisor {
     if (child.exitCode !== null) {
       if (record.child === child) record.child = null;
       record.token = null;
+      record.controlUrl = null;
       return;
     }
 
     record.pid = child.pid;
-    record.state = "starting";
-
-    const token = {};
-    record.token = token;
-    void this.markReady(record, child, token);
+    void this.markReady(record, child, token, wsPort);
   }
 
   // Do not attach the historian until the child's WebSocket is listening,
@@ -286,9 +331,9 @@ export class DriverSupervisor {
   private async markReady(
     record: DriverRecord,
     child: Child,
-    token: object
+    token: object,
+    port: number
   ): Promise<void> {
-    const port = driverPort(this.config, record.driver);
     const deadline = Date.now() + READY_TIMEOUT_MS;
     let ready = false;
 
@@ -320,6 +365,7 @@ export class DriverSupervisor {
     if (record.child === child) record.child = null;
     record.token = null;
     record.pid = null;
+    record.controlUrl = null;
     record.lastExit = {
       code,
       signal,
@@ -350,9 +396,18 @@ export class DriverSupervisor {
     this.clearRestart(record);
     record.restartTimer = setTimeout(() => {
       record.restartTimer = null;
-      if (record.desired) this.spawn(record);
+      if (record.desired) this.start(record.driver);
     }, this.config.restartMs);
     unref(record.restartTimer);
+  }
+
+  private fail(record: DriverRecord, error: unknown): void {
+    record.state = "failed";
+    record.desired = false;
+    record.token = null;
+    record.controlUrl = null;
+    record.error = error instanceof Error ? error.message : String(error);
+    this.notifyStop(record, "exited");
   }
 
   private notifyStart(record: DriverRecord): void {
@@ -387,6 +442,7 @@ export class DriverSupervisor {
       driver: record.driver,
       nodeId: record.nodeId,
       url: record.url,
+      controlUrl: record.controlUrl,
       desired: record.desired,
       state: record.state,
       pid: record.pid,

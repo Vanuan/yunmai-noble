@@ -81,8 +81,10 @@ function toDto(row: MeasurementRow): MeasurementDto {
 }
 
 function uiFile(pathname: string): string | null {
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const target = normalize(join(UI_DIST, relative));
+  const relative =
+    pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const withIndex = relative.endsWith("/") ? `${relative}index.html` : relative;
+  const target = normalize(join(UI_DIST, withIndex));
   if (!target.startsWith(UI_DIST + sep)) return null;
   return existsSync(target) && statSync(target).isFile() ? target : null;
 }
@@ -145,6 +147,13 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
         },
+      });
+    }
+
+    if (url.pathname === "/simulator" && uiFile("/simulator/")) {
+      return new Response(null, {
+        status: 308,
+        headers: { ...cors, Location: "/simulator/" },
       });
     }
 

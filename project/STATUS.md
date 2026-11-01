@@ -31,19 +31,21 @@ API and live relay. The desktop client is still missing. See
   `/api/measurements`, `/api/measurements/latest`, `/api/devices`, `/api/events`
   (SSE), and static hosting for the built UI.
 - `packages/suite`: single executable that hosts the historian and UI, starts
-  one node child per driver, restarts crashed drivers, and exposes
-  `GET /api/suite` plus `POST /api/suite/drivers/{driver}/{start,stop}`.
+  one node child per driver on OS-assigned loopback ports, restarts crashed
+  drivers, and exposes `GET /api/suite` plus
+  `POST /api/suite/drivers/{driver}/{start,stop}`. Children exit when the
+  suite's stdin closes, so crashes do not leave ports held.
 - `yunmai-noble.toml` configuration with `--config` / `YUNMAI_CONFIG` and
   environment-variable overrides.
 - Multi-source ingest: the historian follows every configured upstream and
   reports `upstream` plus per-source `upstreams` in `/health`.
-- `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
-  chart, history, and a simulator scale console.
-- Simulator console: the node exposes a loopback control server, the suite
-  proxies it at `/api/suite/simulator`, and the UI drives power, weight, user,
-  step-on, step-off, and history replay.
+- `packages/ui`: React + Vite + Tailwind dashboard at `/` with live readings,
+  trend chart, and history.
+- Simulator app at `/simulator/`: a separate entry point with power, weight,
+  user, step-on, step-off, and history replay; the node exposes a loopback
+  control server and the suite proxies it at `/api/suite/simulator`.
 - `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
-- 82 Bun tests and `tsc --noEmit`.
+- 81 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 

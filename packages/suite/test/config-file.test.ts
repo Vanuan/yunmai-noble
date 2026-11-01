@@ -27,7 +27,6 @@ upstream_urls = ["ws://127.0.0.1:9000", "ws://127.0.0.1:9001"]
 
 [drivers]
 initial = ["simulator", "dbus"]
-port_base = 9000
 restart_ms = 0
 
 [simulator]
@@ -51,7 +50,6 @@ test("loads a local TOML file into environment overrides", () => {
       "ws://127.0.0.1:9000,ws://127.0.0.1:9001"
     );
     assert.equal(result.env.SUITE_SCALES, "simulator,dbus");
-    assert.equal(result.env.SUITE_WS_PORT_BASE, "9000");
     assert.equal(result.env.SUITE_DRIVER_RESTART_MS, "0");
     assert.equal(result.env.SIMULATOR_WEIGHT_KG, "80.5");
     assert.equal(result.env.SIMULATOR_STEPS, "6");

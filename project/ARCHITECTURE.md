@@ -40,15 +40,17 @@ storage queries are internal.
 ## Single executable
 
 `packages/suite` hosts the historian and serves the built UI in one Bun process.
-Each scale driver is a child node process with a stable port and device id,
-communicating over the v1 WebSocket contract. This keeps drivers isolated and
-lets `noble` use Node 22 while everything else runs on Bun.
+Each scale driver is a child node process with a stable device id and
+OS-assigned loopback ports, communicating over the v1 WebSocket contract. This
+keeps drivers isolated and lets `noble` use Node 22 while everything else runs
+on Bun. Children watch stdin and exit if the suite disappears.
 
 The control surface at `/api/suite` starts and stops drivers at runtime, so
 simulated and real scales can feed the same historian concurrently. Simulator
 routes are proxied to a loopback control server in the simulator node; the
-web UI uses them for a power switch, weight, user, step-on, and history replay.
-A desktop distribution can embed this supervisor or ship it as a sidecar.
+virtual scale app at `/simulator/` uses them for a power switch, weight, user,
+step-on, and history replay. A desktop distribution can embed this supervisor
+or ship it as a sidecar.
 
 ## Ports
 
@@ -90,7 +92,6 @@ selects another file; environment variables override file values.
 | `YUNMAI_WS_URL` / `YUNMAI_WS_URLS` | Internal | Node streams consumed by the historian |
 | `NODE_ID` | Contract | Device identity in v1 |
 | `SUITE_SCALES` | Internal | Drivers started by the suite |
-| `SUITE_WS_PORT_BASE` | Internal | First driver port |
 | `SUITE_DRIVER_RESTART_MS` | Internal | Driver restart delay |
 
 ## Testing

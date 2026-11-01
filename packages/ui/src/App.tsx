@@ -2,7 +2,6 @@ import { ErrorBanner } from "./components/ErrorBanner";
 import { Header } from "./components/Header";
 import { HistoryList } from "./components/HistoryList";
 import { LatestWeightCard } from "./components/LatestWeightCard";
-import { SimulatorPanel } from "./components/SimulatorPanel";
 import { WeightChart } from "./components/WeightChart";
 import { useDashboard } from "./hooks/useDashboard";
 
@@ -42,7 +41,6 @@ export function App() {
               deviceStatus={deviceStatus}
             />
             <WeightChart measurements={measurements} />
-            <SimulatorPanel liveWeightKg={live?.weightKg ?? null} />
           </div>
           <div className="lg:col-span-2">
             <HistoryList measurements={measurements} />
@@ -50,7 +48,10 @@ export function App() {
         </main>
 
         <footer className="mt-auto pt-4 text-xs text-stone-400 dark:text-stone-500">
-          Weight historian · updates live while this page is open
+          Weight historian · updates live while this page is open{" · "}
+          <a href="/simulator/" className="underline hover:text-stone-600 dark:hover:text-stone-300">
+            Simulator
+          </a>
         </footer>
       </div>
     </div>
