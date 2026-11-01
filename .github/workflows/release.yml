@@ -104,6 +104,36 @@ jobs:
           merge-multiple: true
           path: dist/deb
 
+      - name: Collect current release packages
+        run: |
+          mkdir -p dist/release
+          cp dist/deb/*.deb dist/release/
+
+      - name: Add previous release packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t releases < <(
+            gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts \
+              --limit 4 --json tagName --jq '.[].tagName'
+          )
+          count=0
+          for tag in "${releases[@]}"; do
+            if [ "$tag" = "$GITHUB_REF_NAME" ]; then
+              continue
+            fi
+            if gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+              --pattern '*.deb' --dir dist/deb --clobber; then
+              count=$((count + 1))
+            else
+              echo "warning: could not download packages from $tag" >&2
+            fi
+            if [ "$count" -ge 2 ]; then
+              break
+            fi
+          done
+          echo "added packages from $count previous release(s)"
+
       - name: Import signing key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -117,15 +147,25 @@ jobs:
           printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
           echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
 
+      - name: Build keyring package
+        run: |
+          version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' package.json | head -n 1)
+          packaging/deb/keyring.sh --out dist/deb
+          cp "dist/deb/yunmai-noble-archive-keyring_${version}_all.deb" dist/release/
+
       - name: Build APT repository
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: packaging/deb/repo.sh --in dist/deb --out dist/apt
+        run: >-
+          packaging/deb/repo.sh --in dist/deb --out dist/apt
+          --seed-url https://vanuan.github.io/yunmai-noble/apt
 
       - name: Stage Pages site
         run: |
           mkdir -p site
           cp -a dist/apt site/apt
+          cp dist/release/yunmai-noble-archive-keyring_*_all.deb \
+            site/apt/yunmai-noble-archive-keyring.deb
           touch site/.nojekyll
 
       - uses: actions/configure-pages@v5
@@ -142,18 +182,19 @@ jobs:
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          (cd dist/deb && sha256sum *.deb > SHA256SUMS)
+          (cd dist/release && sha256sum *.deb > SHA256SUMS)
           opts=(--batch --yes)
           if [ -n "$GPG_PASSPHRASE" ]; then
             opts+=(--pinentry-mode loopback --passphrase "$GPG_PASSPHRASE")
           fi
-          gpg "${opts[@]}" --armor --detach-sign -o dist/deb/SHA256SUMS.asc dist/deb/SHA256SUMS
+          gpg "${opts[@]}" --armor --detach-sign \
+            -o dist/release/SHA256SUMS.asc dist/release/SHA256SUMS
 
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files=(dist/deb/*.deb dist/deb/SHA256SUMS dist/deb/SHA256SUMS.asc)
+          files=(dist/release/*.deb dist/release/SHA256SUMS dist/release/SHA256SUMS.asc)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
           else

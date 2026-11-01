@@ -1,0 +1,4 @@
+# This package exists to bootstrap the repository, so installing the source
+# list is its purpose. The source is pinned with Signed-By to the keyring that
+# ships alongside it.
+yunmai-noble-archive-keyring: package-installs-apt-sources [etc/apt/sources.list.d/yunmai-noble.sources]

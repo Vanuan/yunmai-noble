@@ -1,0 +1,12 @@
+Package: yunmai-noble-archive-keyring
+Version: @VERSION@
+Architecture: all
+Maintainer: Vanuan <vanuan@gmail.com>
+Installed-Size: @INSTALLED_SIZE@
+Homepage: https://github.com/Vanuan/yunmai-noble
+Section: misc
+Priority: optional
+Description: APT keyring and source for the Yunmai Noble repository
+ Installs the archive signing key in /usr/share/keyrings and a deb822
+ source list for https://vanuan.github.io/yunmai-noble/apt, so apt can
+ verify and update Yunmai Noble packages without manual key setup.

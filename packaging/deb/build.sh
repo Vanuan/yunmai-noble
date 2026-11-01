@@ -5,7 +5,7 @@
 # explicitly so the same layout can be reused by CI or a Nix derivation later.
 #
 #   packaging/deb/build.sh
-#   packaging/deb/build.sh --arch arm64 --version 0.2.0 --out dist/deb
+#   packaging/deb/build.sh --arch arm64 --version 0.2.1 --out dist/deb
 #
 set -euo pipefail
 
@@ -207,6 +207,7 @@ mkdir -p \
   "$MAIN/usr/bin" \
   "$MAIN/usr/lib/systemd/system" \
   "$MAIN/usr/share/doc/yunmai-noble" \
+  "$MAIN/usr/share/lintian/overrides" \
   "$MAIN/etc/yunmai-noble"
 
 # Source files come from a working tree with mixed modes. Normalize them so
@@ -221,6 +222,8 @@ cp "$PKG_DIR/yunmai-noble/config.toml" "$MAIN/etc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/config.env" "$MAIN/etc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/README.Debian" "$MAIN/usr/share/doc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/copyright" "$MAIN/usr/share/doc/yunmai-noble/"
+cp "$PKG_DIR/yunmai-noble/lintian-overrides" \
+  "$MAIN/usr/share/lintian/overrides/yunmai-noble"
 gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
   > "$MAIN/usr/share/doc/yunmai-noble/changelog.gz"
 cp "$PKG_DIR/yunmai-noble/postinst" "$PKG_DIR/yunmai-noble/prerm" \
@@ -255,7 +258,8 @@ chmod 0644 "$MAIN/DEBIAN/control" "$MAIN/DEBIAN/conffiles" \
   "$MAIN/etc/yunmai-noble/config.toml" "$MAIN/etc/yunmai-noble/config.env" \
   "$MAIN/usr/share/doc/yunmai-noble/README.Debian" \
   "$MAIN/usr/share/doc/yunmai-noble/copyright" \
-  "$MAIN/usr/share/doc/yunmai-noble/changelog.gz"
+  "$MAIN/usr/share/doc/yunmai-noble/changelog.gz" \
+  "$MAIN/usr/share/lintian/overrides/yunmai-noble"
 
 if [ "$SKIP_DESKTOP" -eq 0 ]; then
   log "assembling yunmai-noble-desktop"

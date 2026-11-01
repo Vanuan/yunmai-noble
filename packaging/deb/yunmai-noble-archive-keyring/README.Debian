@@ -1,0 +1,19 @@
+yunmai-noble-archive-keyring
+============================
+
+This package adds the Yunmai Noble APT repository:
+
+  /usr/share/keyrings/yunmai-noble-archive-keyring.gpg
+  /etc/apt/sources.list.d/yunmai-noble.sources
+
+After installing it, refresh the package lists and install the application:
+
+  sudo apt update
+  sudo apt install yunmai-noble-full
+
+The source file is a conffile, so local changes survive upgrades. Removing
+the package removes both the source entry and the key.
+
+Key rotation happens through a new version of this package. While a rotation
+is in progress the keyring can contain both the old and the new key; do not
+remove the old key until clients have upgraded.

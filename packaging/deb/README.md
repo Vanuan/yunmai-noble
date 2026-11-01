@@ -1,6 +1,7 @@
 # Debian packages
 
-Four packages are built from one staged runtime:
+Four application packages are built from one staged runtime, plus a
+bootstrap keyring package:
 
 | Package | Purpose | Port | Data |
 | --- | --- | --- | --- |
@@ -8,6 +9,7 @@ Four packages are built from one staged runtime:
 | `yunmai-noble` | Real scale service and web UI | `3000` | `/var/lib/yunmai-noble` |
 | `yunmai-noble-desktop` | GPUI dashboard and simulator control app | — | — |
 | `yunmai-noble-simulator` | Virtual scale for demos | `3100` | `/var/lib/yunmai-noble-simulator` |
+| `yunmai-noble-archive-keyring` | Bootstrap: signing key + apt source | — | — |
 
 The service and the GUI are separate so a headless Raspberry Pi install does
 not pull X11, Wayland, or GL libraries. `yunmai-noble-full` is the
@@ -51,6 +53,10 @@ and only useful for running a demo instance in parallel with the real service.
 /etc/yunmai-noble/simulator.env             simulator env overrides (conffile)
 /usr/share/applications/yunmai-noble-simulator.desktop
 /var/lib/yunmai-noble-simulator/            SQLite database
+
+# yunmai-noble-archive-keyring
+/usr/share/keyrings/yunmai-noble-archive-keyring.gpg
+/etc/apt/sources.list.d/yunmai-noble.sources   repository conffile
 ```
 
 Both units run as the unprivileged `yunmai` user. The main unit joins the
@@ -87,32 +93,54 @@ Useful flags:
 the package; it requires Node 22 and does not load under Bun. The `dbus`
 driver is the only hardware path shipped.
 
+The bootstrap keyring package needs the archive signing key and is built
+separately:
+
+```sh
+packaging/deb/keyring.sh --out dist/deb
+```
+
 ## Repository
 
 `packaging/deb/repo.sh` turns the built packages into a signed APT tree, and
 `.github/workflows/release.yml` publishes it to GitHub Pages under `/apt` and
-attaches the `.deb` files to a GitHub Release on every `v*` tag. See
-[project/DISTRIBUTION.md](../../project/DISTRIBUTION.md) for the channel,
+attaches the `.deb` files to a GitHub Release on every `v*` tag. The repository
+uses `Acquire-By-Hash` and seeds the previous generation from the live site, so
+an `apt update` during a deployment can still resolve the old indices. It also
+publishes `yunmai-noble-archive-keyring.deb` at a stable URL for first-time
+setup. The release workflow also adds the two previous releases' packages, so
+the repository keeps three versions for pinning and for the by-hash transition.
+See [project/DISTRIBUTION.md](../../project/DISTRIBUTION.md) for the channel,
 signing-key, and retention details.
 
 ## Install
 
 ```sh
 # desktop + service from the local files
-sudo apt install ./yunmai-noble_0.2.0_amd64.deb \
-                 ./yunmai-noble-desktop_0.2.0_amd64.deb \
-                 ./yunmai-noble-full_0.2.0_all.deb
+sudo apt install ./yunmai-noble_0.2.1_amd64.deb \
+                 ./yunmai-noble-desktop_0.2.1_amd64.deb \
+                 ./yunmai-noble-full_0.2.1_all.deb
 
 # headless service only
-sudo apt install ./yunmai-noble_0.2.0_amd64.deb
+sudo apt install ./yunmai-noble_0.2.1_amd64.deb
 
 # optional parallel demo instance
-sudo apt install ./yunmai-noble-simulator_0.2.0_amd64.deb
+sudo apt install ./yunmai-noble-simulator_0.2.1_amd64.deb
 ```
 
 With the APT repository configured, `sudo apt install yunmai-noble-full` is
-enough. [INSTALL.md](../../INSTALL.md) has the full install, update, and
-removal guide, including the repository setup.
+enough. To configure apt from a local build, build and install the bootstrap
+package first:
+
+```sh
+packaging/deb/keyring.sh --out dist/deb
+sudo apt install ./yunmai-noble-archive-keyring_0.2.1_all.deb
+sudo apt update
+sudo apt install yunmai-noble-full
+```
+
+[INSTALL.md](../../INSTALL.md) has the full install, update, and removal guide,
+including the published repository setup.
 
 The post-install script creates the `yunmai` user and data directories,
 enables and starts the units, and reloads systemd. `apt remove` stops and

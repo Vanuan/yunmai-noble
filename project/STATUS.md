@@ -72,7 +72,11 @@ that installs the service and the client together. See
 - Distribution: `.github/workflows/release.yml` builds `amd64` and `arm64`
   packages on `v*` tags, signs an APT repository with `packaging/deb/repo.sh`,
   deploys it to GitHub Pages under `/apt`, and attaches the `.deb` files to the
-  GitHub Release. See [DISTRIBUTION.md](DISTRIBUTION.md).
+  GitHub Release. The repository publishes a `yunmai-noble-archive-keyring`
+  bootstrap package and uses `Acquire-By-Hash` with the previous index
+  generation seeded from the live site. `.github/workflows/ci.yml` runs Bun and
+  Rust tests plus a `lintian --fail-on error` package build on pushes and pull
+  requests. See [DISTRIBUTION.md](DISTRIBUTION.md).
 - 152 Bun tests, 19 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
@@ -84,13 +88,10 @@ that installs the service and the client together. See
   driver; the default `.deb` omits them.
 - `dbus-sim`: the real `dbus` driver against a private mock BlueZ. Design in
   [DBUS_SIMULATOR.md](DBUS_SIMULATOR.md).
-- The first tagged release through the new workflow; it needs the
-  `GPG_PRIVATE_KEY` secret and Pages enabled.
 - Reconnect loop and packet validation in the node; the suite restarts exited
   drivers but does not resume a BLE session.
 - Remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
 - Cloud ingest and historian auth.
-- Pull-request CI and linting; the release workflow runs only on tags.
 
 ## Known issues
 

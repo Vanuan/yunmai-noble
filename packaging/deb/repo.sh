@@ -21,6 +21,7 @@ LABEL="Yunmai Noble"
 KEEP=3
 UNSIGNED=0
 GPG_KEY=""
+SEED_URL=""
 
 usage() {
   cat <<'EOF'
@@ -34,6 +35,7 @@ Usage: packaging/deb/repo.sh [options]
   --label <name>    Release Label field (default: Yunmai Noble)
   --gpg-key <id>    signing key; defaults to GPG_KEY_ID or the first secret key
   --keep <n>        keep the newest n versions per package and arch (0 = all)
+  --seed-url <url>  previous repository root; keeps its index hashes reachable
   --unsigned        skip signing; for local testing only
   -h, --help        show this help
 EOF
@@ -58,6 +60,7 @@ while [ "$#" -gt 0 ]; do
     --label) LABEL=${2:?--label requires a value}; shift 2 ;;
     --gpg-key) GPG_KEY=${2:?--gpg-key requires a value}; shift 2 ;;
     --keep) KEEP=${2:?--keep requires a value}; shift 2 ;;
+    --seed-url) SEED_URL=${2:?--seed-url requires a value}; shift 2 ;;
     --unsigned) UNSIGNED=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1 (try --help)" ;;
@@ -67,6 +70,9 @@ done
 [ -d "$IN" ] || die "no such input directory: $IN"
 command -v dpkg-deb >/dev/null || die "dpkg-deb not found"
 command -v dpkg-scanpackages >/dev/null || die "dpkg-scanpackages not found"
+if [ -n "$SEED_URL" ]; then
+  command -v curl >/dev/null || die "curl is required for --seed-url"
+fi
 
 shopt -s nullglob
 debs=("$IN"/*.deb)
@@ -152,6 +158,7 @@ fi
   printf 'Architectures: %s\n' "${arches[*]}"
   printf 'Components: %s\n' "$COMPONENT"
   printf 'Description: %s APT repository\n' "$LABEL"
+  printf 'Acquire-By-Hash: yes\n'
   for algo in MD5Sum SHA1 SHA256; do
     case "$algo" in
       MD5Sum) cmd=md5sum ;;
@@ -168,6 +175,62 @@ fi
     )
   done
 } > "$release"
+
+# Hash-addressed index copies let apt keep the previous generation reachable
+# while a GitHub Pages deployment is propagating. Seed that generation from the
+# live site so a client that already fetched its Release can still resolve.
+release_entries() {
+  awk -v comp="$COMPONENT" '
+    /^SHA256:/ { inside = 1; next }
+    inside && /^[A-Za-z]/ { inside = 0 }
+    inside && $3 ~ ("^" comp "/binary-[^/]+/Packages(\\.gz)?$") { print $1, $3 }
+  ' "$1"
+}
+
+allow=$(mktemp)
+trap 'rm -f "$allow"' EXIT
+release_entries "$release" | awk '{ print $1 }' >> "$allow"
+
+for arch in "${arches[@]}"; do
+  index="$OUT/dists/$SUITE/$COMPONENT/binary-$arch"
+  mkdir -p "$index/by-hash/SHA256"
+  for file in "$index/Packages" "$index/Packages.gz"; do
+    cp "$file" "$index/by-hash/SHA256/$(sha256sum "$file" | cut -d' ' -f1)"
+  done
+done
+
+if [ -n "$SEED_URL" ]; then
+  seed_base="${SEED_URL%/}/dists/$SUITE"
+  previous=$(mktemp)
+  if curl -fsSL "$seed_base/Release" -o "$previous" 2>/dev/null; then
+    log "seeding by-hash indices from $seed_base"
+    release_entries "$previous" | awk '{ print $1 }' >> "$allow"
+    while read -r hash path; do
+      [ -n "$hash" ] && [ -n "$path" ] || continue
+      relative_dir=$(dirname "$path")
+      [ -d "$OUT/dists/$SUITE/$relative_dir" ] || continue
+      target_dir="$OUT/dists/$SUITE/$relative_dir/by-hash/SHA256"
+      mkdir -p "$target_dir"
+      tmp=$(mktemp)
+      if curl -fsSL "$seed_base/$path" -o "$tmp" 2>/dev/null &&
+        [ "$(sha256sum "$tmp" | cut -d' ' -f1)" = "$hash" ]; then
+        cp "$tmp" "$target_dir/$hash"
+      else
+        log "warning: could not seed $path"
+      fi
+      rm -f "$tmp"
+    done < <(release_entries "$previous")
+  else
+    log "no previous repository at $seed_base; skipping by-hash seed"
+  fi
+  rm -f "$previous"
+fi
+
+find "$dists" -type f -path '*/by-hash/SHA256/*' -print0 |
+  while IFS= read -r -d '' file; do
+    grep -qxF "$(basename "$file")" "$allow" || rm -f "$file"
+  done
+find "$dists" -type d -empty -delete
 
 if [ "$UNSIGNED" -eq 1 ]; then
   log "skipping signing (--unsigned)"

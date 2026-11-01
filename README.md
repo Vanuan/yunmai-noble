@@ -177,9 +177,9 @@ bun install
 packaging/deb/build.sh                   # writes dist/deb/*.deb
 
 # install the built files together, or add the repository and use apt
-sudo apt install ./dist/deb/yunmai-noble_0.2.0_amd64.deb \
-                 ./dist/deb/yunmai-noble-desktop_0.2.0_amd64.deb \
-                 ./dist/deb/yunmai-noble-full_0.2.0_all.deb
+sudo apt install ./dist/deb/yunmai-noble_0.2.1_amd64.deb \
+                 ./dist/deb/yunmai-noble-desktop_0.2.1_amd64.deb \
+                 ./dist/deb/yunmai-noble-full_0.2.1_all.deb
 ```
 
 | Package | What it installs |
@@ -201,6 +201,8 @@ end-user install, update, and removal instructions.
 Tagged releases publish a signed APT repository at
 `https://vanuan.github.io/yunmai-noble/apt` (suite `stable`) and `.deb` files
 on GitHub Releases; see [project/DISTRIBUTION.md](project/DISTRIBUTION.md).
+The repository also publishes `yunmai-noble-archive-keyring`, a bootstrap
+package that installs the signing key and apt source.
 
 ## BLE drivers
 

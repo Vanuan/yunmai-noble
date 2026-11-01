@@ -1,3 +1,12 @@
+yunmai-noble (0.2.1) unstable; urgency=medium
+
+  * Add the yunmai-noble-archive-keyring bootstrap package.
+  * Use Acquire-By-Hash and retain the previous index and package
+    generations.
+  * Add CI for pushes and pull requests, including a lintian gate.
+
+ -- Vanuan <vanuan@gmail.com>  Mon, 02 Nov 2026 00:00:00 +0000
+
 yunmai-noble (0.2.0) unstable; urgency=medium
 
   * Split the desktop client into yunmai-noble-desktop and add the

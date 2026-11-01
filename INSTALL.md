@@ -17,31 +17,17 @@ Raspberry Pi OS Bookworm, on `amd64` or `arm64`.
 
 This is the recommended path: it gives you `apt upgrade` for later releases.
 
-### 1. Add the signing key
+### 1. Install the keyring and source
 
 ```sh
-sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://vanuan.github.io/yunmai-noble/apt/yunmai-noble-archive-keyring.gpg \
-  | sudo tee /etc/apt/keyrings/yunmai-noble.gpg >/dev/null
+curl -fsSLO https://vanuan.github.io/yunmai-noble/apt/yunmai-noble-archive-keyring.deb
+sudo apt install ./yunmai-noble-archive-keyring.deb
 ```
 
-### 2. Add the repository
+The package installs the signing key under `/usr/share/keyrings` and a deb822
+source in `/etc/apt/sources.list.d`. Both are removed with the package.
 
-```sh
-sudo tee /etc/apt/sources.list.d/yunmai-noble.sources <<'EOF'
-Types: deb
-URIs: https://vanuan.github.io/yunmai-noble/apt
-Suites: stable
-Components: main
-Architectures: amd64 arm64
-Signed-By: /etc/apt/keyrings/yunmai-noble.gpg
-EOF
-```
-
-`Architectures` may be narrowed to your host architecture, or the line can be
-removed to use apt's defaults.
-
-### 3. Refresh the package lists
+### 2. Refresh the package lists
 
 ```sh
 sudo apt update
@@ -53,7 +39,7 @@ You should see a line like:
 Get:1 https://vanuan.github.io/yunmai-noble/apt stable InRelease
 ```
 
-### 4. Install
+### 3. Install
 
 ```sh
 sudo apt install yunmai-noble-full
@@ -79,7 +65,7 @@ The optional demo instance can be added at any time:
 sudo apt install yunmai-noble-simulator
 ```
 
-### 5. Check that it runs
+### 4. Check that it runs
 
 ```sh
 systemctl status yunmai-noble
@@ -89,6 +75,29 @@ journalctl -u yunmai-noble -f
 Open `http://127.0.0.1:3000/` for the web dashboard, or start **Yunmai Noble**
 from the application menu. The desktop app opens Settings from the titlebar to
 choose the simulator, D-Bus, or node-bindings driver.
+
+### Manual repository setup
+
+If you prefer not to install the keyring package, configure the repository by
+hand:
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://vanuan.github.io/yunmai-noble/apt/yunmai-noble-archive-keyring.gpg \
+  | sudo tee /etc/apt/keyrings/yunmai-noble.gpg >/dev/null
+sudo tee /etc/apt/sources.list.d/yunmai-noble.sources <<'EOF'
+Types: deb
+URIs: https://vanuan.github.io/yunmai-noble/apt
+Suites: stable
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/yunmai-noble.gpg
+EOF
+sudo apt update
+```
+
+`Architectures` may be narrowed to your host architecture, or the line can be
+removed to use apt's defaults.
 
 ## Update
 
@@ -113,10 +122,10 @@ apt policy yunmai-noble
 dpkg -l 'yunmai-noble*'
 ```
 
-The repository serves the current release, so `apt install
-yunmai-noble=0.2.0` only works while that version is the published one. Older
-versions are kept on the GitHub Releases page; download the `.deb` files and
-install them together (see below) to downgrade.
+The repository keeps the current release and up to two previous ones, so
+`apt install yunmai-noble=0.2.1` works while that version is still in the
+pool. Older versions are on the GitHub Releases page; download the `.deb` files
+and install them together (see below) to go further back.
 
 ### Change the repository definition
 
@@ -127,10 +136,18 @@ then refresh:
 sudo apt update
 ```
 
-If the signing key ever changes, replace `/etc/apt/keyrings/yunmai-noble.gpg`
-and run `sudo apt update` again.
+If the signing key ever changes, upgrade `yunmai-noble-archive-keyring` (or
+replace `/etc/apt/keyrings/yunmai-noble.gpg` if you configured the repository
+by hand) and run `sudo apt update` again.
 
 ### Remove the repository
+
+```sh
+sudo apt remove yunmai-noble-archive-keyring
+sudo apt update
+```
+
+If you configured it by hand instead, delete the source and key files:
 
 ```sh
 sudo rm /etc/apt/sources.list.d/yunmai-noble.sources \
@@ -145,19 +162,19 @@ architecture from the [releases page](https://github.com/Vanuan/yunmai-noble/rel
 then install the metapackage and its two dependencies together:
 
 ```sh
-sudo apt install ./yunmai-noble_0.2.0_amd64.deb \
-                 ./yunmai-noble-desktop_0.2.0_amd64.deb \
-                 ./yunmai-noble-full_0.2.0_all.deb
+sudo apt install ./yunmai-noble_0.2.1_amd64.deb \
+                 ./yunmai-noble-desktop_0.2.1_amd64.deb \
+                 ./yunmai-noble-full_0.2.1_all.deb
 ```
 
-Replace `amd64` with `arm64` on ARM hosts and adjust `0.2.0` if you downloaded
+Replace `amd64` with `arm64` on ARM hosts and adjust `0.2.1` if you downloaded
 a different release. `apt` resolves system dependencies and installs the local
 files in one transaction; plain `dpkg -i` does not.
 
 Optional demo instance:
 
 ```sh
-sudo apt install ./yunmai-noble-simulator_0.2.0_amd64.deb
+sudo apt install ./yunmai-noble-simulator_0.2.1_amd64.deb
 ```
 
 Verify the downloads before installing:
@@ -199,8 +216,9 @@ Unattended-Upgrade::Allowed-Origins {
 ## Troubleshooting
 
 **`NO_PUBKEY` or "not signed" on `apt update`**
-Re-download the keyring; check that `Signed-By` in the `.sources` file points
-at `/etc/apt/keyrings/yunmai-noble.gpg`.
+Reinstall `yunmai-noble-archive-keyring`, or re-download the keyring file if
+you configured the repository by hand. Check that `Signed-By` points at the
+file that actually exists.
 
 **`404 Not Found` or `Hash Sum mismatch`**
 A Pages deployment may be replacing the repository. Wait a minute and run

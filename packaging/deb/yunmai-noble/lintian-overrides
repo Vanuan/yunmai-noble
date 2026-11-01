@@ -1,0 +1,3 @@
+# Bun ships a single prebuilt runtime binary. Stripping or relinking it is not
+# supported upstream, so the hardening and symbol tags do not apply.
+yunmai-noble: unstripped-binary-or-object [usr/lib/yunmai-noble/runtime/bun]
