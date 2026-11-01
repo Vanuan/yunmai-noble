@@ -3,25 +3,6 @@
 Yunmai scales BLE node, simulator, weight historian, web dashboard, and a
 single-executable suite that runs them together.
 
-## Idea
-
-```mermaid
-flowchart TD
-    human(("human")) --> scales["yunmai scales"]
-    human --> client["UI client (web, desktop, ...)"]
-
-    scales -->|"Bluetooth"| node["yunmai-noble"]
-    node -->|"WebSocket JSON (completed)"| historian["Weight historian (Bun service)"]
-    historian --> db[("SQLite")]
-
-    client -->|"REST /api/measurements"| historian
-    node -->|"WebSocket live"| client
-```
-
-The system has three external boundaries: BLE (D-Bus/HCI), persistence (file or
-remote database), and HTTP/HTML/API. Only adapters touch OS, database, or HTTP
-specifics. See [Architecture](project/ARCHITECTURE.md).
-
 ![Dashboard and virtual scale](docs/screenshot.png)
 
 _Dashboard (left) and the simulator web app (right), both served by the suite._

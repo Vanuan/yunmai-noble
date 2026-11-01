@@ -1,5 +1,23 @@
 # System architecture
 
+## Idea
+
+```mermaid
+flowchart TD
+    human(("human")) --> scales["yunmai scales"]
+    human --> client["UI client (web, desktop, ...)"]
+
+    scales -->|"Bluetooth"| node["yunmai-noble"]
+    node -->|"WebSocket JSON (completed)"| historian["Weight historian (Bun service)"]
+    historian --> db[("SQLite")]
+
+    client -->|"REST /api/measurements"| historian
+    node -->|"WebSocket live"| client
+```
+
+Humans produce measurements on scales; the node normalizes them; clients read
+history from the historian and live messages from the node.
+
 ## Black-box view
 
 ```mermaid
