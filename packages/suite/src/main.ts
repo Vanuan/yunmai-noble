@@ -46,9 +46,13 @@ async function main(): Promise<void> {
         `suite: ${view.driver} on ${view.url} as ${view.nodeId}`
       );
     },
-    onStop: (view) => {
+    onStop: (view, reason) => {
       app.ingests.remove(view.driver);
-      consoleLogger.log(`suite: ${view.driver} stopped`);
+      consoleLogger.log(
+        reason === "exited"
+          ? `suite: ${view.driver} upstream detached`
+          : `suite: ${view.driver} stopped`
+      );
     },
   });
 

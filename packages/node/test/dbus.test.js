@@ -120,6 +120,7 @@ class FakeAdapter extends EventEmitter {
     super();
     this.devicesByAddress = devices;
     this.discovering = false;
+    this.getDeviceCalls = 0;
   }
 
   async isPowered() {
@@ -143,6 +144,7 @@ class FakeAdapter extends EventEmitter {
   }
 
   async getDevice(address) {
+    this.getDeviceCalls += 1;
     const device = this.devicesByAddress[address];
     if (!device) throw new Error('Device not found');
     return device;
@@ -354,6 +356,27 @@ test('matches devices by name and ignores unrelated peripherals', async function
     assert.equal(discovered.length, 1);
     assert.equal(discovered[0].address, scale.device.address);
     assert.equal(discovered[0].advertisement.localName, 'YUNMAI-SIM');
+  } finally {
+    link.destroy();
+  }
+});
+
+test('reuses device proxies across scans', async function() {
+  const unrelated = new FakeDevice('22:22:22:22:22:22', 'OTHER-DEVICE', new FakeGatt({}));
+  const fake = fakeBluetooth({ [unrelated.address]: unrelated });
+  const link = dbus.createLink({
+    createBluetooth: fake.createBluetooth,
+    scanIntervalMs: 1,
+    connectPollMs: 5,
+    logger: SILENT_LOGGER
+  });
+
+  try {
+    await waitForState(link, 'poweredOn');
+    link.startScanning();
+    await delay(30);
+
+    assert.equal(fake.adapter.getDeviceCalls, 1);
   } finally {
     link.destroy();
   }

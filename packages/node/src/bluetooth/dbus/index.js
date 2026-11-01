@@ -323,6 +323,7 @@ class DbusLink extends EventEmitter {
     this._scanTimer = null;
     this._scanInFlight = false;
     this._seen = new Set();
+    this._devices = new Map();
     this._peripherals = [];
     this._destroyed = false;
     this._lastState = null;
@@ -439,7 +440,7 @@ class DbusLink extends EventEmitter {
     const self = this;
     if (!this._scanning || this._seen.has(address)) return Promise.resolve();
 
-    return this._adapter.getDevice(address)
+    return this._getDevice(address)
       .then(function(device) {
         return self._findMatchingName(device).then(function(localName) {
           if (!localName || !self._scanning) return;
@@ -459,6 +460,20 @@ class DbusLink extends EventEmitter {
       .catch(function(error) {
         self._logger.error('dbus: failed to inspect ' + address + ': ' + error.message);
       });
+  }
+
+  // node-ble creates a new D-Bus proxy and signal listener for every
+  // getDevice call, including for peripherals that never match. Cache one
+  // proxy per address so repeated scans do not accumulate listeners.
+  _getDevice(address) {
+    const cached = this._devices.get(address);
+    if (cached) return Promise.resolve(cached);
+
+    const self = this;
+    return this._adapter.getDevice(address).then(function(device) {
+      self._devices.set(address, device);
+      return device;
+    });
   }
 
   _findMatchingName(device) {
@@ -505,6 +520,7 @@ class DbusLink extends EventEmitter {
       peripheral.dispose();
     });
     this._peripherals = [];
+    this._devices.clear();
 
     if (this._destroyBus) {
       try {

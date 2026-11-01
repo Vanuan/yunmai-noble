@@ -1,4 +1,5 @@
 import { dirname } from "node:path";
+import { connect } from "node:net";
 import { fileURLToPath } from "node:url";
 
 import type { Logger } from "@yunmai-noble/historian/logger";
@@ -15,6 +16,28 @@ const NODE_SCRIPT = fileURLToPath(
   new URL("../../node/ble.js", import.meta.url)
 );
 const NODE_DIR = dirname(NODE_SCRIPT);
+
+const READY_TIMEOUT_MS = 5000;
+const READY_POLL_MS = 50;
+
+function canConnect(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ host: "127.0.0.1", port });
+    const done = (value: boolean): void => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.once("connect", () => done(true));
+    socket.once("error", () => done(false));
+    socket.setTimeout(500, () => done(false));
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 type Child = ReturnType<typeof Bun.spawn>;
 
@@ -57,13 +80,14 @@ interface DriverRecord {
   child: Child | null;
   restartTimer: ReturnType<typeof setTimeout> | null;
   upstreamActive: boolean;
+  token: object | null;
 }
 
 export interface SupervisorOptions {
   config: SuiteConfig;
   logger: Logger;
   onStart?: (view: DriverView) => void;
-  onStop?: (view: DriverView) => void;
+  onStop?: (view: DriverView, reason: "stopped" | "exited") => void;
   bunRuntime?: string;
   nodeRuntime?: string | null;
 }
@@ -79,7 +103,10 @@ export class DriverSupervisor {
   private readonly config: SuiteConfig;
   private readonly logger: Logger;
   private readonly onStart?: (view: DriverView) => void;
-  private readonly onStop?: (view: DriverView) => void;
+  private readonly onStop?: (
+    view: DriverView,
+    reason: "stopped" | "exited"
+  ) => void;
   private readonly bunRuntime: string;
   private readonly nodeRuntime: string | null;
   private readonly records = new Map<DriverName, DriverRecord>();
@@ -111,6 +138,7 @@ export class DriverSupervisor {
         child: null,
         restartTimer: null,
         upstreamActive: false,
+        token: null,
       });
     }
 
@@ -138,10 +166,10 @@ export class DriverSupervisor {
     const record = this.require(driver);
     record.desired = false;
     this.clearRestart(record);
+    this.notifyStop(record, "stopped");
 
     if (!record.child) {
       record.state = "stopped";
-      this.notifyStop(record);
       return this.view(record);
     }
 
@@ -167,11 +195,11 @@ export class DriverSupervisor {
     const record = this.require(driver);
     record.desired = false;
     this.clearRestart(record);
+    this.notifyStop(record, "stopped");
 
     const child = record.child;
     if (!child) {
       record.state = "stopped";
-      this.notifyStop(record);
       return;
     }
 
@@ -196,7 +224,7 @@ export class DriverSupervisor {
       record.state = "failed";
       record.desired = false;
       record.error = "BLE_DRIVER=noble requires node on PATH";
-      this.notifyStop(record);
+      this.notifyStop(record, "exited");
       return;
     }
 
@@ -224,7 +252,7 @@ export class DriverSupervisor {
       record.state = "failed";
       record.desired = false;
       record.error = error instanceof Error ? error.message : String(error);
-      this.notifyStop(record);
+      this.notifyStop(record, "exited");
       return;
     }
 
@@ -233,10 +261,43 @@ export class DriverSupervisor {
     // onExit may run before Bun.spawn returns.
     if (child.exitCode !== null) {
       if (record.child === child) record.child = null;
+      record.token = null;
       return;
     }
 
     record.pid = child.pid;
+    record.state = "starting";
+
+    const token = {};
+    record.token = token;
+    void this.markReady(record, child, token);
+  }
+
+  // Do not attach the historian until the child's WebSocket is listening,
+  // which avoids a guaranteed failed connection on every start and restart.
+  private async markReady(
+    record: DriverRecord,
+    child: Child,
+    token: object
+  ): Promise<void> {
+    const port = driverPort(this.config, record.driver);
+    const deadline = Date.now() + READY_TIMEOUT_MS;
+    let ready = false;
+
+    while (!ready && Date.now() < deadline) {
+      if (record.child !== child || record.token !== token) return;
+      ready = await canConnect(port);
+      if (!ready) await sleep(READY_POLL_MS);
+    }
+
+    if (record.child !== child || record.token !== token) return;
+    if (!ready) {
+      this.logger.log(
+        `suite: ${record.driver} did not open ${record.url} within ` +
+          `${READY_TIMEOUT_MS} ms; attaching upstream anyway`
+      );
+    }
+
     record.state = "running";
     record.startedAt = new Date().toISOString();
     this.notifyStart(record);
@@ -249,6 +310,7 @@ export class DriverSupervisor {
     signal: NodeJS.Signals | number | null
   ): void {
     if (record.child === child) record.child = null;
+    record.token = null;
     record.pid = null;
     record.lastExit = {
       code,
@@ -256,16 +318,17 @@ export class DriverSupervisor {
       at: new Date().toISOString(),
     };
 
+    // The upstream is gone while the driver restarts.
+    this.notifyStop(record, "exited");
+
     if (!record.desired) {
       record.state = "stopped";
-      this.notifyStop(record);
       return;
     }
 
     if (this.config.restartMs <= 0) {
       record.state = "failed";
       record.error = `exited with code ${code ?? "null"}`;
-      this.notifyStop(record);
       return;
     }
 
@@ -289,10 +352,13 @@ export class DriverSupervisor {
     this.onStart?.(this.view(record));
   }
 
-  private notifyStop(record: DriverRecord): void {
+  private notifyStop(
+    record: DriverRecord,
+    reason: "stopped" | "exited"
+  ): void {
     if (!record.upstreamActive) return;
     record.upstreamActive = false;
-    this.onStop?.(this.view(record));
+    this.onStop?.(this.view(record), reason);
   }
 
   private clearRestart(record: DriverRecord): void {

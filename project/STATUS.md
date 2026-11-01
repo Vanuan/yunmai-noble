@@ -37,7 +37,7 @@ API and live relay. The desktop client is still missing. See
   reports `upstream` plus per-source `upstreams` in `/health`.
 - `packages/ui`: React + Vite + Tailwind dashboard with live readings, trend
   chart, and history; `bun run ui` proxies to the historian.
-- 68 Bun tests and `tsc --noEmit`.
+- 69 Bun tests and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
