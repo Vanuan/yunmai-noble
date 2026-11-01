@@ -68,6 +68,15 @@ function startControlServer(options) {
   const server = http.createServer(function(request, response) {
     (async function() {
       const url = new URL(request.url, 'http://127.0.0.1');
+      if (url.pathname === '/') {
+        return send(response, 404, {
+          error: {
+            code: 'internal_control',
+            message:
+              'Simulator control is internal. Open the suite at /simulator/.'
+          }
+        });
+      }
       if (url.pathname.indexOf('/api/simulator') !== 0) {
         return send(response, 404, {
           error: { code: 'not_found', message: 'Not found' }
@@ -170,7 +179,7 @@ function startControlServer(options) {
   server.on('listening', function() {
     const address = server.address();
     logger.log(
-      'simulator: control on http://127.0.0.1:' +
+      'simulator: control (internal) on http://127.0.0.1:' +
         (address && typeof address === 'object' ? address.port : options.port)
     );
   });

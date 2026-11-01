@@ -81,8 +81,16 @@ async function main(): Promise<void> {
     void shutdown("SIGHUP");
   });
 
+  const displayHost =
+    historianConfig.host === "0.0.0.0" || historianConfig.host === "::"
+      ? "127.0.0.1"
+      : historianConfig.host;
+
   consoleLogger.log(
-    `suite: listening on http://${historianConfig.host}:${app.server.port}`
+    `suite: dashboard http://${displayHost}:${app.server.port}/`
+  );
+  consoleLogger.log(
+    `suite: simulator http://${displayHost}:${app.server.port}/simulator/`
   );
   consoleLogger.log(
     `suite: drivers ${suiteConfig.drivers.join(", ") || "none"}; ` +

@@ -111,7 +111,10 @@ function validationMessage(error: {
 export function startHttpServer(options: HttpServerOptions): Server<undefined> {
   const { store, sse, ingests, logger, corsOrigin } = options;
 
-  async function handle(request: Request): Promise<Response> {
+  async function handle(
+    request: Request,
+    server: Server<undefined>
+  ): Promise<Response> {
     const url = new URL(request.url);
     const cors = corsHeaders(corsOrigin);
 
@@ -235,6 +238,9 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
     }
 
     if (url.pathname === "/api/events") {
+      // SSE streams are quiet between measurements and would otherwise hit
+      // Bun's default 10 s request idle timeout.
+      server.timeout(request, 0);
       return new Response(sse.subscribe(), {
         headers: {
           ...cors,
@@ -258,9 +264,9 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
   return Bun.serve({
     hostname: options.host,
     port: options.port,
-    async fetch(request) {
+    async fetch(request, server) {
       try {
-        return await handle(request);
+        return await handle(request, server);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`historian: request failed: ${message}`);
