@@ -89,8 +89,8 @@ TypeScript types and zod schemas live in
 
 ## BLE transport
 
-The current link uses `@abandonware/noble` on Node 22. The planned migration to
-a pure-JS BlueZ D-Bus transport (Bun-compatible, no native addons) is
-documented in
+The link is selected with `BLE_DRIVER`: `noble` (native HCI, Node 22 only),
+`dbus` (pure-JS BlueZ, target, Bun-compatible), or `simulator` (no hardware).
+The planned dual-driver migration is documented in
 [`project/BLE-TRANSPORT-MIGRATION.md`](project/BLE-TRANSPORT-MIGRATION.md).
 

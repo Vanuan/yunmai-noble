@@ -12,9 +12,10 @@ Items are ordered by dependency, not priority.
   Raspberry Pi deployment.
 - **Deployment:** `run.sh` builds the image from the current `Dockerfile`. The
   image uses Node 22 and npm because Bun has no arm32 image.
-- **BLE transport:** migrate to `node-ble` over BlueZ D-Bus per
-  [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md). The native
-  noble/Node link remains the interim and rollback path.
+- **BLE transport:** dual-driver support via `BLE_DRIVER`: `dbus` is the
+  target default, `noble` remains a selectable legacy driver, and `simulator`
+  stays for tests. See
+  [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md).
 - **Deployment target:** Linux/NixOS with BlueZ on the host; containers mount
   the system D-Bus socket instead of using privileged networking.
 - **Yunmai protocol:** notification packet types are implemented in
@@ -28,16 +29,17 @@ Items are ordered by dependency, not priority.
 2. Emit the v1 WebSocket contract from the node per
    [WEBSOCKET.md](WEBSOCKET.md).
 3. Implement the D-Bus BLE driver per
-   [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md) and validate it on
-   NixOS with a real scale.
-4. Add environment configuration for the node (`NODE_ID`, `HISTORIAN_URL`,
+   [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md), keeping `noble`
+   selectable, and validate both on NixOS with a real scale.
+4. Move noble/HCI to optional dependencies and add the legacy noble image.
+5. Add environment configuration for the node (`NODE_ID`, `HISTORIAN_URL`,
    device-name filter, UUIDs).
-5. Validate packet signature, length, and checksum before parsing.
-6. Replace `process.exit(0)` on disconnect with a scan-and-reconnect loop.
-7. Implement the Weight historian per [HISTORIAN.md](HISTORIAN.md) (REST API +
+6. Validate packet signature, length, and checksum before parsing.
+7. Replace `process.exit(0)` on disconnect with a scan-and-reconnect loop.
+8. Implement the Weight historian per [HISTORIAN.md](HISTORIAN.md) (REST API +
    SQLite).
-8. Build a minimal UI client (web or desktop).
-9. Add CI.
+9. Build a minimal UI client (web or desktop).
+10. Add CI.
 
 ## Open questions
 

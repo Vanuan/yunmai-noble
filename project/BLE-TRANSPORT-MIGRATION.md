@@ -6,12 +6,14 @@ Status: decided; not started.
 
 Migrate the BLE link from `@abandonware/noble` /
 `@abandonware/bluetooth-hci-socket` to **`node-ble` over the BlueZ D-Bus API**
-(Option 1).
+(Option 1), while keeping the native noble link as a **selectable legacy
+driver**. Both drivers sit behind `BLE_DRIVER`, emit the same events, and can
+coexist in the repository.
 
-Keep the current Node 22 + noble link as an interim and rollback path until the
-D-Bus driver reaches feature parity. Do not adopt the N-API `simpleble` route
-now; keep process separation (Option 3) as the fallback if D-Bus cannot provide
-the required GATT behavior.
+The target default is `dbus`. `noble` remains available for Node 22, arm32, and
+hardware comparison; `simulator` remains available with no hardware. Do not
+adopt the N-API `simpleble` route now; keep process separation (Option 3) as
+the fallback if D-Bus cannot provide the required GATT behavior.
 
 ## Why
 
@@ -51,6 +53,46 @@ the required GATT behavior.
 | `node-ble` over BlueZ D-Bus | Yes; pure JS fallback | Good; socket mount, no native build | Medium: rewrite scan/GATT layer | **Selected** |
 | `simpleble` (N-API) | Yes in principle | Native prebuilds; NixOS portability risk; older package | Medium | Deferred |
 | Node BLE worker + IPC | Bun app, Node child | Keeps native + Node runtime | Low | Fallback during migration |
+
+## Driver selection
+
+`BLE_DRIVER` selects the transport at startup.
+
+| Value | Runtime | Native addon | Host requirements | Purpose |
+| --- | --- | --- | --- | --- |
+| `noble` | Node 22 only | Yes (`bluetooth-hci-socket`) | Bluetooth adapter; privileged/HCI access | Legacy and hardware comparison |
+| `dbus` | Node 22 or Bun | No | BlueZ + system D-Bus socket | Target default |
+| `simulator` | Node 22 or Bun | No | None | Development and tests |
+
+Rules:
+
+- Selection is explicit. Do not silently fall back to another driver; a
+  failure should exit with a clear message naming the selected driver and the
+  missing dependency, daemon, socket, or permission.
+- Both real drivers implement the same link contract and emit identical
+  measurement events. `ble.js`, the WebSocket contract, and the historian do
+  not know which driver is active.
+- The default stays `noble` until `dbus` passes a real-scale validation, then
+  flips to `dbus`. `noble` remains selectable afterwards.
+- Driver-specific settings: `DBUS_SYSTEM_BUS_ADDRESS` for `dbus`, the
+  simulator's `SIMULATOR_*` variables for `simulator`, and `NOBLE_*` settings
+  for `noble` if needed.
+- Log the selected driver and its runtime at startup for support.
+
+### Packaging
+
+- Move `@abandonware/noble` and the HCI socket to `optionalDependencies` in
+  `packages/node`, so a D-Bus/Bun install can omit them with
+  `--omit optional`.
+- The D-Bus driver uses `node-ble` + `dbus-next`; keep the optional native
+  `usocket` out of the install as well.
+- Keep two deployment variants while the legacy driver is supported:
+  - `Dockerfile` (default): D-Bus, Node or Bun, no build tools, no privileged
+    networking.
+  - `Dockerfile.noble` (legacy): Node 22, native build tools, privileged/HCI
+    access.
+- `run.sh` takes a driver/image choice or defaults to the D-Bus image; document
+  the legacy command separately.
 
 ## Target architecture
 
@@ -124,21 +166,25 @@ Add `BLE_DRIVER=dbus` and a link implementation under
   any BLE stack.
 - Add a manual checklist for a real scale on Linux and NixOS.
 
-### 3. Switch the default
+### 3. Switch the default and keep both drivers
 
-- Make `dbus` the default driver once a real scale is verified.
-- Keep `BLE_DRIVER=noble` for rollback during one release.
+- Make `dbus` the default once a real scale is verified.
+- Keep `BLE_DRIVER=noble` as a supported legacy driver, not only a rollback
+  switch. Document the runtime and hardware requirements for each.
+- Log the selected driver at startup and include it in health/diagnostics.
 
-### 4. Remove native dependencies
+### 4. Demote native dependencies
 
-- Remove `@abandonware/noble` and `@abandonware/bluetooth-hci-socket`.
+- Move `@abandonware/noble` and `@abandonware/bluetooth-hci-socket` to
+  `optionalDependencies` so D-Bus/Bun installs can omit them.
 - Drop `alpine-sdk`, `python3`, `eudev-dev`, and `linux-headers` from the
-  image; the D-Bus client needs none of them.
+  default image; the D-Bus client needs none of them.
 - Install dependencies with optional packages omitted so `usocket` is not
   compiled: `bun install --omit optional` for Bun, or
   `npm ci --omit=dev --omit=optional` for the Node image.
-- Switch the runtime image to Bun on amd64/arm64; keep a Node image only if
-  arm32 support is still required.
+- Keep the legacy noble image for as long as the driver is supported. Switch
+  the default runtime image to Bun on amd64/arm64; keep a Node image for arm32
+  or move arm32 to `dbus` under Node.
 
 ## NixOS
 
@@ -184,11 +230,14 @@ the container usually works; a non-root user needs the host policy entry.
 
 - `BLE_DRIVER=dbus bun run dev` discovers a real Yunmai scale on Linux/NixOS,
   subscribes to `ffe4`, and emits the same measurements as the noble link.
-- The v1 WebSocket contract output is unchanged.
+- `BLE_DRIVER=noble` still works on Node 22 with the legacy image.
+- The v1 WebSocket contract output is identical for both drivers.
 - The full test suite passes under Bun with no native BLE addon installed.
-- The deployment image runs without `--privileged` or `--network=host`, with
-  only the D-Bus socket mounted and port `8080` published.
-- `bun.lock` / `package-lock.json` contain no noble/HCI packages.
+- The default deployment image runs without `--privileged` or
+  `--network=host`, with only the D-Bus socket mounted and port `8080`
+  published.
+- `bun.lock` / `package-lock.json` reference noble only through optional
+  dependencies.
 
 ## Risks
 
@@ -209,6 +258,6 @@ the container usually works; a non-root user needs the host policy entry.
 
 ## Rollback
 
-Keep `BLE_DRIVER=noble` and the Node 22 image until the D-Bus path has passed a
-real-scale test. Rollback requires no data migration because the WebSocket
-contract and historian storage schema are unchanged.
+Keep `BLE_DRIVER=noble` and the legacy Node 22 image as a supported option.
+Switching back requires no data migration because the WebSocket contract and
+historian storage schema are unchanged.
