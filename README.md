@@ -22,6 +22,10 @@ The system has three external boundaries: BLE (D-Bus/HCI), persistence (file or
 remote database), and HTTP/HTML/API. Only adapters touch OS, database, or HTTP
 specifics. See [Architecture](project/ARCHITECTURE.md).
 
+![Dashboard and virtual scale](docs/screenshot.png)
+
+_Dashboard (left) and the simulator web app (right), both served by the suite._
+
 ## Quick start
 
 Requires Node 22 (`.nvmrc`) and Bun 1.3+.
@@ -182,8 +186,9 @@ packages/node       BLE node, simulator, and tests
 packages/contract   WebSocket v1 schemas and types
 packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
 packages/suite      Single executable: historian + UI + driver supervisor
-packages/ui         React/Vite/Tailwind dashboard
+packages/ui         React/Vite/Tailwind dashboard and simulator app
 apps/desktop        planned Rust/GPUI desktop client
+docs/               screenshots
 lab.toml            simulator-only development config
 project/            design and status documents
 yunmai-noble.example.toml  sample suite configuration
