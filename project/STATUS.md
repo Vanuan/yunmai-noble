@@ -54,7 +54,9 @@ historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 - Disconnect calls `process.exit(0)`; recovery relies on Docker restart policy.
 - The device-name filter and UUIDs are hardcoded; the WebSocket port is set via
   `WS_PORT`.
-- Bun cannot load the native BLE transport; the real link must run on Node 22.
+- Bun cannot load the native BLE transport; the real link still runs on
+  Node 22. A pure-JS BlueZ D-Bus migration is planned in
+  [BLE-TRANSPORT-MIGRATION.md](BLE-TRANSPORT-MIGRATION.md).
 - The deployment image uses npm instead of Bun because Bun publishes no arm32
   image.
 - The node still emits the unversioned v0 WebSocket format; v1 migration is
@@ -66,7 +68,7 @@ historian design. Planned work is tracked in [ROADMAP.md](ROADMAP.md).
 | Component | Status |
 | --- | --- |
 | yunmai scales | Hardware or simulator |
-| Bluetooth link | Implemented |
+| Bluetooth link | Implemented with noble; D-Bus migration planned |
 | yunmai-noble node | Partial |
 | Web socket | v1 contract defined; v0 still emitted |
 | UI client (web, desktop, ...) | Missing |

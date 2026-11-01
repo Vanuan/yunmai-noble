@@ -87,3 +87,10 @@ The message format is specified in [`project/WEBSOCKET.md`](project/WEBSOCKET.md
 TypeScript types and zod schemas live in
 `packages/contract/src/websocket.ts`.
 
+## BLE transport
+
+The current link uses `@abandonware/noble` on Node 22. The planned migration to
+a pure-JS BlueZ D-Bus transport (Bun-compatible, no native addons) is
+documented in
+[`project/BLE-TRANSPORT-MIGRATION.md`](project/BLE-TRANSPORT-MIGRATION.md).
+
