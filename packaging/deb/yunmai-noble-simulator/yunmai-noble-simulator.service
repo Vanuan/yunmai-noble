@@ -1,0 +1,30 @@
+[Unit]
+Description=Yunmai Noble virtual scale
+Documentation=file:///usr/share/doc/yunmai-noble-simulator/README.Debian
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/usr/lib/yunmai-noble/packages/suite/src/main.ts
+
+[Service]
+Type=simple
+User=yunmai
+Group=yunmai
+EnvironmentFile=-/etc/yunmai-noble/simulator.env
+Environment=HOME=/var/lib/yunmai-noble-simulator
+Environment=NODE_ENV=production
+Environment=SUITE_SCALES=simulator
+Environment=SUITE_NODE_ID_PREFIX=sim
+WorkingDirectory=/var/lib/yunmai-noble-simulator
+ExecStart=/usr/bin/yunmai-noble --config /etc/yunmai-noble/simulator.toml
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/yunmai-noble-simulator
+
+[Install]
+WantedBy=multi-user.target

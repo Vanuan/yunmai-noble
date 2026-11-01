@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6e9ed"/>
+    </linearGradient>
+    <linearGradient id="disc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2f4f6"/>
+      <stop offset="0.5" stop-color="#9aa3ad"/>
+      <stop offset="1" stop-color="#d7dce1"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#body)" stroke="#cfd5db" stroke-width="2"/>
+  <text x="64" y="46" text-anchor="middle" font-family="DejaVu Sans, sans-serif"
+        font-size="26" font-weight="300" fill="#7c878f">88.8</text>
+  <circle cx="64" cy="72" r="14" fill="url(#disc)" stroke="#8d959d" stroke-width="1"/>
+  <path d="M64 60 L74 72 L64 84 L54 72 Z" fill="#eef1f3" opacity="0.7"/>
+  <text x="64" y="112" text-anchor="middle" font-family="DejaVu Sans, sans-serif"
+        font-size="9" font-weight="600" letter-spacing="1" fill="#9aa3ad">YUNMAI</text>
+</svg>

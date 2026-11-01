@@ -1,0 +1,30 @@
+[Unit]
+Description=Yunmai Noble scale service
+Documentation=file:///usr/share/doc/yunmai-noble/README.Debian
+After=network-online.target bluetooth.target
+Wants=network-online.target bluetooth.target
+ConditionPathExists=/usr/lib/yunmai-noble/packages/suite/src/main.ts
+
+[Service]
+Type=simple
+User=yunmai
+Group=yunmai
+EnvironmentFile=-/etc/yunmai-noble/config.env
+Environment=HOME=/var/lib/yunmai-noble
+Environment=NODE_ENV=production
+WorkingDirectory=/var/lib/yunmai-noble
+ExecStart=/usr/bin/yunmai-noble --config /etc/yunmai-noble/config.toml
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+
+# The service only writes its database, WAL, and logs under its state
+# directory. BlueZ is reached over the system D-Bus socket in /run.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/yunmai-noble
+
+[Install]
+WantedBy=multi-user.target

@@ -31,7 +31,7 @@ function describe(options: SuiteControlOptions): {
   drivers: DriverResponse[];
 } {
   return {
-    available: DRIVERS,
+    available: options.supervisor.availableDrivers(),
     drivers: options.supervisor.list().map((view) => ({
       ...view,
       upstream: options.ingests.get(view.driver)?.status() ?? null,

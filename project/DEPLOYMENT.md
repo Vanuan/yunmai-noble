@@ -91,61 +91,91 @@ Package the stack natively and expose it on the local network.
 - Deployment is declarative via `nixos-rebuild switch`; configuration lives in
   `configuration.nix`.
 
-## Ubuntu `.deb` (laptop service + desktop app)
+## Ubuntu `.deb` (service + desktop app)
 
-Ship two packages: a systemd service and a native Rust/GPUI desktop client.
-The app talks only to the service's local HTTP API; it never accesses BLE,
-SQLite, or the database directly. The desktop crate now lives in
-`apps/desktop`; its launcher expects a user unit named
-`yunmai-noble.service`. Packaging and SSE live updates are the remaining steps.
+Two packages are built with `dpkg-deb` from one staged runtime:
 
-### Service package (`yunmai-noble`)
+| Package | Purpose | Port | Data |
+| --- | --- | --- | --- |
+| `yunmai-noble` | Real scale service, web UI, desktop client | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-simulator` | Virtual scale for demos | `3100` | `/var/lib/yunmai-noble-simulator` |
 
-- Contents: `yunmai-node` and `yunmai-historian` binaries, bundled runtime,
-  systemd unit(s), D-Bus policy, default env file, docs.
-- Layout:
-  - `/usr/lib/yunmai-noble/` application and runtime
-  - `/etc/yunmai-noble/config.env` configuration
-  - `/var/lib/yunmai-noble/` SQLite data
-  - `/usr/bin/yunmai-noble` status/helper command
-- Service: run as a dedicated `yunmai` user in the `bluetooth` group; D-Bus
-  policy allows `org.bluez`; `After=bluetooth.service`.
-- Runtime choice:
-  - Bundle Node 22 (needed only for the legacy `noble` driver) or compile with
-    `bun build --compile` for the default `dbus` driver.
-  - A Bun-compiled binary has no Node dependency and no native addon; the
-    legacy noble driver would not be included.
-- Dependencies: `bluez`, `dbus`, `libc6`.
+`yunmai-noble-simulator` depends on the exact main version and shares
+`/usr/lib/yunmai-noble`; it only adds a unit, a config file, and a desktop
+entry. See [packaging/deb/README.md](../packaging/deb/README.md).
 
-### Desktop package (`yunmai-noble-desktop`)
+### `yunmai-noble`
 
-- Rust/GPUI application using the historian as its only backend:
-  `GET /api/measurements`, `GET /api/measurements/latest`, `GET /health`, and a
-  live SSE endpoint.
-- Views: latest weight, history chart, device/service health, reconnect state.
-- The app connects to the service at `127.0.0.1` by default and reads an
-  optional local API token; it has no root privileges and does not manage
-  systemd directly.
-- Layout:
-  - `/usr/bin/yunmai-noble-desktop`
-  - `/usr/share/applications/yunmai-noble.desktop`
-  - icons and AppStream metadata
-- Dependencies: GPUI's graphics stack (X11/Wayland, OpenGL/Vulkan, fontconfig,
-  xkbcommon) plus the service package.
-- GPUI is pre-1.0 and Linux support is still evolving. Pin a revision, spike
-  the app early, and keep Tauri/egui as fallbacks if packaging or Wayland
-  behavior blocks delivery.
-- The service also exposes a live relay (SSE first; WebSocket optional) so the
-  desktop app does not need to talk to the node directly.
+- **Runtime:** Bun bundled at `/usr/lib/yunmai-noble/runtime/bun` (no distro
+  Bun dependency), with the workspace sources, production `node_modules`, and
+  `packages/ui/dist`. The legacy `noble` addon is excluded with
+  `--omit=optional`.
+- **Wrapper:** `/usr/bin/yunmai-noble` executes the bundled Bun on
+  `packages/suite/src/main.ts`, so supervised drivers reuse the same runtime.
+- **Service:** `yunmai-noble.service` runs as the `yunmai` user, joins the
+  `bluetooth` group when BlueZ exists, and binds only the state directory via
+  `ProtectSystem=strict` + `ReadWritePaths`.
+- **Config:** `/etc/yunmai-noble/config.toml` and `config.env` are conffiles;
+  the database lives in `/var/lib/yunmai-noble/historian.sqlite`. The service
+  starts the drivers in `[drivers] initial`; the desktop client can switch them
+  at runtime through `/api/suite`.
+- **Desktop:** `/usr/bin/yunmai-noble-desktop`, the application entry, and the
+  icon are part of the same package. The titlebar Settings dialog selects
+  simulator, D-Bus, or node bindings and stops the others. When the simulator
+  is active it launches `/usr/bin/yunmai-noble-simulator-ui`, which drives
+  `/api/suite/simulator` and never touches D-Bus.
+- **Dependencies:** `dbus`, `ca-certificates`, the X11/xkb/gcc libraries,
+  `adduser`, and a `libc6` minimum detected from the binary. `bluez` is
+  recommended rather than required.
 
-### Packaging
+### `yunmai-noble-simulator` (optional)
 
-- Build with `nfpm` or `dpkg-deb` in CI for `amd64` and `arm64`; the desktop
-  package depends on the service package.
-- `apt` upgrades restart the service and run DB migrations; the desktop app
-  reconnects to `http://127.0.0.1:<port>` automatically.
-- Optional autostart entry and a tray/quick-view surface can follow after the
-  main window works.
+- The main service can switch to the simulator driver from the app, so this
+  package is only for a parallel demo instance with its own database.
+- Its unit sets `SUITE_SCALES=simulator` and `SUITE_NODE_ID_PREFIX=sim`, reads
+  `/etc/yunmai-noble/simulator.toml`, and listens on `127.0.0.1:3100`.
+- The "Yunmai Noble Simulator" desktop entry points the client at port `3100`
+  and sets `YUNMAI_SERVICE=yunmai-noble-simulator.service`.
+
+### Launcher
+
+The GPUI client probes `/health` before opening. If the historian is
+unreachable and the URL is loopback, it starts the packaged system unit and
+waits up to ~6 s. `YUNMAI_SERVICE` selects the unit (default
+`yunmai-noble.service`); `--no-autostart` or `YUNMAI_AUTOSTART=none` disables
+this. The packaged `.desktop` entries rely on the same path. After connecting,
+the Settings dialog applies the remembered choice from
+`~/.config/yunmai-noble/desktop.json` and stops the other drivers. When the
+simulator is active, **Open simulator** launches the separate GPUI control app
+against the same historian URL.
+
+### Build and install
+
+```sh
+bun install
+packaging/deb/build.sh          # or: bun run deb
+
+sudo apt install ./dist/deb/yunmai-noble_0.1.0_amd64.deb
+sudo apt install ./dist/deb/yunmai-noble-simulator_0.1.0_amd64.deb
+```
+
+The post-install script creates the user and data directories, enables and
+starts the units, and reloads systemd. `apt remove` keeps the databases;
+`apt purge` deletes the data directory and the `yunmai` user.
+
+### Constraints
+
+- The desktop binary links the build host's glibc; the build script derives the
+  `libc6` dependency from it. Build on the oldest release you support (the
+  current amd64 build requires glibc 2.43).
+- Packages are architecture-specific. Build `arm64` on an `arm64` host, or
+  cross-compile the Rust client and supply an arm64 Bun binary.
+- Without `bluez` the historian and web UI still run, but the `dbus` driver has
+  no adapter to talk to.
+- The default package omits the native `noble` addon. Node bindings need Node
+  22, `@abandonware/noble`, and HCI capabilities for the service user, so the
+  suite omits the driver and the client disables it. Direct API starts fail
+  fast with an actionable message.
 
 ## Shared operations
 
@@ -169,23 +199,19 @@ SQLite, or the database directly. The desktop crate now lives in
 
 ## Milestones
 
-1. Historian, HTTP/SSE surface, browser UI, and the single-executable suite are
-   done; finish the GPUI client and desktop packaging.
+1. Historian, HTTP/SSE surface, browser UI, single-executable suite, GPUI
+   client, and the Ubuntu `.deb` pair are done.
 2. Harden node configuration, v1 emission, and reconnect behavior.
 3. Raspberry Pi single-host deployment plus HA REST integration.
 4. NixOS flake and module.
-5. Ubuntu service `.deb`.
-6. GPUI desktop spike, then `yunmai-noble-desktop` `.deb`.
-7. Cloud historian with authenticated WSS ingest and outbound agent.
-8. MQTT/HA discovery; ESP32 agent prototype.
+5. Cloud historian with authenticated WSS ingest and outbound agent.
+6. MQTT/HA discovery; ESP32 agent prototype.
 
 ## Open questions
 
 - SQLite in the cloud for a single instance, or Postgres from the start?
 - MQTT discovery or REST sensors as the first Home Assistant integration?
 - Is the HAOS add-on allowed host D-Bus, or must it fall back to HCI?
-- Should the Ubuntu service package bundle Bun, bundle Node, or depend on Node
-  22?
 - Is GPUI mature enough on Ubuntu/Wayland, or should the desktop client use
   Tauri/egui?
 - Should the desktop app use SSE or WebSocket for live updates?

@@ -6454,6 +6454,26 @@ dependencies = [
  "serde",
  "serde_json",
  "ureq",
+ "yunmai-noble-ui-kit",
+]
+
+[[package]]
+name = "yunmai-noble-simulator-ui"
+version = "0.1.0"
+dependencies = [
+ "gpui-platform-gpui-unofficial",
+ "gpui-unofficial",
+ "serde",
+ "serde_json",
+ "ureq",
+ "yunmai-noble-ui-kit",
+]
+
+[[package]]
+name = "yunmai-noble-ui-kit"
+version = "0.1.0"
+dependencies = [
+ "gpui-unofficial",
 ]
 
 [[package]]

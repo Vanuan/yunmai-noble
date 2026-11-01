@@ -107,6 +107,12 @@ Errors are non-fatal and do not close the connection.
 ## Invariants
 
 - `weight` is always an integer in hundredths of a kilogram.
+- There is no unit on the wire. The Yunmai measuring and measured packets
+  carry only a weight value, so the scale's physical kg/lb switch is not
+  observable to the service; everything downstream stores and publishes
+  kilograms. Clients convert at render time (`weight / 2.204622621848776`).
+  The simulator's `SET_UNIT` (0x13) command is a test hook only — real
+  hardware command framing has not been reverse-engineered.
 - Timestamps are ISO 8601 UTC with a `Z` suffix; fractional seconds are
   optional.
 - `hello` is the first message; messages keep emission order per connection.

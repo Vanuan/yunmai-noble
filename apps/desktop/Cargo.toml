@@ -11,3 +11,4 @@ gpui_platform = { package = "gpui-platform-gpui-unofficial", version = "1.27.0-p
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = { version = "2.12", features = ["json"] }
+yunmai-noble-ui-kit = { path = "../../crates/ui-kit" }

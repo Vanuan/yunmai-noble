@@ -1,0 +1,36 @@
+yunmai-noble
+============
+
+The service reads a Bluetooth scale through BlueZ over the system D-Bus.
+Make sure the Bluetooth adapter is powered and a scale is in pairing range.
+
+If bluez is installed after this package, add the service user to the
+bluetooth group and restart:
+
+  sudo adduser yunmai bluetooth
+  sudo systemctl restart yunmai-noble
+
+  systemctl status yunmai-noble
+  journalctl -u yunmai-noble -f
+
+Dashboard and API: http://127.0.0.1:3000/
+Configuration:     /etc/yunmai-noble/config.toml
+Environment:       /etc/yunmai-noble/config.env
+Database:          /var/lib/yunmai-noble/historian.sqlite
+
+After editing config.toml or config.env:
+
+  sudo systemctl restart yunmai-noble
+
+The desktop client is installed as "Yunmai Noble" in the application menu.
+It connects to http://127.0.0.1:3000 and starts the system service on
+demand. Set YUNMAI_HISTORIAN_URL to point it at another historian.
+
+Open Settings from the titlebar, select the Simulator driver, then use
+"Open simulator" to launch the standalone virtual-scale app.
+
+The web UI is also reachable from other machines on the LAN because the
+service binds 0.0.0.0. Change [historian] host in config.toml to
+"127.0.0.1" to keep it local.
+
+Run the virtual scale for demos by installing yunmai-noble-simulator.

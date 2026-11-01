@@ -1,3 +1,6 @@
 [workspace]
-members = ["apps/desktop"]
+members = ["apps/desktop", "apps/simulator", "crates/ui-kit"]
 resolver = "3"
+
+[profile.release]
+strip = true

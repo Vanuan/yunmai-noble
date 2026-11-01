@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+if ! id -u yunmai >/dev/null 2>&1; then
+  adduser --system --group --home /var/lib/yunmai-noble \
+    --no-create-home --quiet yunmai
+fi
+
+mkdir -p /var/lib/yunmai-noble-simulator
+chown yunmai:yunmai /var/lib/yunmai-noble-simulator
+chmod 0755 /var/lib/yunmai-noble-simulator
+
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  systemctl enable yunmai-noble-simulator.service || true
+  systemctl restart yunmai-noble-simulator.service || true
+fi
+
+exit 0

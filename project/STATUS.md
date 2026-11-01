@@ -13,8 +13,9 @@ is only for Raspberry Pi deployment.
 
 The historian is implemented with SQLite, WebSocket ingest from one or more
 nodes, HTTP JSON APIs, and an SSE relay. A React browser dashboard consumes the
-API and live relay. The desktop client is still missing. See
-[ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
+API and live relay. A Rust/GPUI desktop client ships with the service in the
+Ubuntu `.deb` packages. See [ARCHITECTURE.md](ARCHITECTURE.md) and
+[ROADMAP.md](ROADMAP.md).
 
 ## Implemented
 
@@ -46,30 +47,48 @@ API and live relay. The desktop client is still missing. See
   weight, user, step-on, step-off, and history replay; the node exposes a
   loopback control server and the suite proxies it at `/api/suite/simulator`.
 - `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
-- `apps/desktop`: Rust/GPUI read-only client using `gpui-unofficial`. It polls
-the historian and shows latest weight, service/upstream status, and history. It
-has client-side chrome (close, drag, resize) and a startup preflight that can
-start a `yunmai-noble.service` user unit or the dev suite.
-- 81 Bun tests, 8 Rust tests, and `tsc --noEmit`.
+- `apps/desktop`: Rust/GPUI client using `gpui-unofficial`. It polls the
+  historian and shows latest weight, service/upstream status, and history. A
+  Settings dialog selects the active suite driver (simulator, D-Bus, or node
+  bindings), stops the others, and remembers the choice in the user config.
+- `apps/simulator`: standalone GPUI virtual-scale control app. It uses
+  `/api/suite/simulator` (power, weight, user, unit, step on/off, history) and
+  is launched from Settings when the simulator driver is active. It never talks
+  to D-Bus directly; the suite owns the transport.
+- `crates/ui-kit`: shared physical-scale platform. The dashboard shows the
+  latest reading on it; the simulator makes it clickable. Both native clients
+  share the same light palette and card treatment. It
+  has client-side chrome (close, drag, resize) and a startup preflight that can
+  start a packaged system unit or the dev suite; `YUNMAI_SERVICE` selects the
+  unit.
+- Debian packaging: `packaging/deb/build.sh` stages a clean runtime with a
+  bundled Bun, builds the desktop client, and produces `yunmai-noble` and
+  `yunmai-noble-simulator` with systemd units, conffiles, and desktop entries.
+  The simulator shares the runtime and runs on port 3100 with its own database.
+- 152 Bun tests, 16 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
 ## Not implemented
 
-- SSE live readings, trend chart, and simulator controls in the desktop client;
-  single-binary and `.deb` packaging.
+- SSE live readings and trend chart in the desktop client.
+- Packaging the native `noble` addon and HCI capabilities for the node-bindings
+  driver; the default `.deb` omits them.
+- `dbus-sim`: the real `dbus` driver against a private mock BlueZ. Design in
+  [DBUS_SIMULATOR.md](DBUS_SIMULATOR.md).
+- Publishing packages to a repository and building `arm64` in CI.
 - Reconnect loop and packet validation in the node; the suite restarts exited
   drivers but does not resume a BLE session.
 - Remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
-- Cloud ingest, historian auth, and deployment packaging.
+- Cloud ingest and historian auth.
 - CI and linting.
 
 ## Known issues
 
 - The default `dbus` driver has not been validated against a real scale.
 - Bun cannot load the legacy noble link; the suite runs `noble` under Node 22.
-  A compiled single-file build would need to ship the node scripts or a Bun
-  runtime.
+  Packages ship the node scripts with a bundled Bun runtime rather than a
+  single compiled executable.
 - Docker images use npm because Bun has no arm32 image.
 - The default image needs host BlueZ/D-Bus and the mounted socket; host
   AppArmor/SELinux policy may also need to allow D-Bus. The legacy image needs

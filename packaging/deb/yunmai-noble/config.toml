@@ -1,0 +1,17 @@
+# yunmai-noble service configuration.
+#
+# Editing this file requires a restart:
+#   sudo systemctl restart yunmai-noble.service
+#
+# Environment variables in /etc/yunmai-noble/config.env override these
+# values. Relative paths resolve from /var/lib/yunmai-noble.
+
+[historian]
+host = "0.0.0.0"
+port = 3000
+database_path = "/var/lib/yunmai-noble/historian.sqlite"
+
+[drivers]
+initial = ["dbus"]
+node_id_prefix = "scale"
+restart_ms = 2000

@@ -46,11 +46,41 @@ pub struct Health {
     pub upstream: UpstreamHealth,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct SuiteState {
+    pub available: Vec<String>,
+    pub drivers: Vec<DriverStatus>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriverStatus {
+    pub driver: String,
+    pub desired: bool,
+    pub state: String,
+    #[serde(default)]
+    pub restarts: u64,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Snapshot {
     pub health: Health,
     pub latest: Option<Measurement>,
     pub measurements: Vec<Measurement>,
+    /// Present when the historian is hosted by the suite.
+    pub suite: Option<SuiteState>,
+}
+
+#[derive(Deserialize)]
+struct ErrorEnvelope {
+    error: ErrorBody,
+}
+
+#[derive(Deserialize)]
+struct ErrorBody {
+    message: String,
 }
 
 #[derive(Clone, Debug)]
@@ -79,12 +109,41 @@ impl HistorianClient {
         let health = self.get_health()?;
         let latest = self.get_optional::<Measurement>("/api/measurements/latest")?;
         let measurements = self.get_json::<MeasurementsResponse>("/api/measurements?limit=20")?;
+        // A standalone historian does not mount the suite control API.
+        let suite = self.get_optional::<SuiteState>("/api/suite")?;
 
         Ok(Snapshot {
             health,
             latest,
             measurements: measurements.measurements,
+            suite,
         })
+    }
+
+    pub fn suite(&self) -> Result<SuiteState, String> {
+        self.get_json::<SuiteState>("/api/suite")
+    }
+
+    /// Start or stop one driver. The caller is responsible for stopping the
+    /// other drivers when it wants an exclusive selection.
+    pub fn driver_action(&self, driver: &str, action: &str) -> Result<SuiteState, String> {
+        if !matches!(action, "start" | "stop") {
+            return Err(format!("unsupported driver action: {action}"));
+        }
+
+        let path = format!("/api/suite/drivers/{driver}/{action}");
+        let url = format!("{}{path}", self.base_url);
+
+        match self.agent.post(&url).call() {
+            Ok(response) => response
+                .into_json::<SuiteState>()
+                .map_err(|error| format!("invalid response from {path}: {error}")),
+            Err(ureq::Error::Status(code, response)) => Err(format!(
+                "{path} failed: HTTP {code} ({})",
+                api_message(response)
+            )),
+            Err(ureq::Error::Transport(error)) => Err(format!("cannot reach historian: {error}")),
+        }
     }
 
     fn get_health(&self) -> Result<Health, String> {
@@ -124,6 +183,19 @@ impl HistorianClient {
             Err(ureq::Error::Status(code, _)) => Err(format!("{path} failed: HTTP {code}")),
             Err(ureq::Error::Transport(error)) => Err(format!("cannot reach historian: {error}")),
         }
+    }
+}
+
+fn api_message(response: ureq::Response) -> String {
+    let body = response.into_string().unwrap_or_default();
+    let message = serde_json::from_str::<ErrorEnvelope>(&body)
+        .map(|envelope| envelope.error.message)
+        .unwrap_or_else(|_| body.trim().to_string());
+
+    if message.is_empty() {
+        "no details".to_string()
+    } else {
+        message
     }
 }
 
@@ -178,6 +250,71 @@ mod tests {
             health.upstream.last_error.as_deref(),
             Some("connection refused")
         );
+    }
+
+    #[test]
+    fn deserializes_suite_drivers() {
+        let suite: SuiteState = serde_json::from_str(
+            r#"{
+                "available": ["dbus", "simulator", "noble"],
+                "drivers": [
+                    {
+                        "driver": "dbus",
+                        "nodeId": "scale-dbus",
+                        "url": "ws://127.0.0.1:4000",
+                        "controlUrl": null,
+                        "desired": true,
+                        "state": "running",
+                        "pid": 42,
+                        "restarts": 0,
+                        "startedAt": null,
+                        "lastExit": null,
+                        "error": null,
+                        "upstream": null
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(suite.available, ["dbus", "simulator", "noble"]);
+        assert_eq!(suite.drivers[0].driver, "dbus");
+        assert!(suite.drivers[0].desired);
+        assert_eq!(suite.drivers[0].state, "running");
+    }
+
+    #[test]
+    fn posts_driver_actions_to_the_suite() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 2048];
+            let read = stream.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            assert!(
+                request.starts_with("POST /api/suite/drivers/simulator/start "),
+                "unexpected request: {request}"
+            );
+
+            let body = r#"{"available":["dbus","simulator","noble"],"drivers":[]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let client = HistorianClient::new(format!("http://{address}"));
+        let suite = client.driver_action("simulator", "start").unwrap();
+        server.join().unwrap();
+
+        assert!(suite.available.iter().any(|name| name == "simulator"));
     }
 
     #[test]

@@ -1,0 +1,19 @@
+Package: yunmai-noble
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: Vanuan <vanuan@gmail.com>
+Installed-Size: @INSTALLED_SIZE@
+Depends: adduser, ca-certificates, dbus, fontconfig, libc6 (>= @LIBC@), libfreetype6, libgcc-s1, libxau6, libxcb-xkb1, libxcb1, libxdmcp6, libxkbcommon-x11-0, libxkbcommon0
+Recommends: bluez, fonts-dejavu-core, libgl1 | libvulkan1
+Suggests: nodejs (>= 22)
+Section: utils
+Priority: optional
+Description: Bluetooth scale service and desktop dashboard
+ Yunmai Noble reads Yunmai Bluetooth scales through BlueZ over D-Bus,
+ stores measurements in SQLite, and serves a web dashboard and JSON/SSE
+ API from a single Bun process.
+ .
+ This package installs the yunmai-noble systemd service, a bundled Bun
+ runtime, the web assets, and the GPUI desktop client. The service runs
+ as the unprivileged yunmai user and keeps its database in
+ /var/lib/yunmai-noble.

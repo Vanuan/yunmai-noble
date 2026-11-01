@@ -58,6 +58,9 @@ storage queries are internal.
 ## Single executable
 
 `packages/suite` hosts the historian and serves the built UI in one Bun process.
+Its `/api/suite` control surface starts and stops drivers at runtime; the
+desktop client uses it to switch between simulator, D-Bus, and node bindings.
+The CLI and config file remain the default for headless installs.
 Each scale driver is a child node process with a stable device id and
 OS-assigned loopback ports, communicating over the v1 WebSocket contract. This
 keeps drivers isolated and lets `noble` use Node 22 while everything else runs
@@ -76,10 +79,18 @@ or ship it as a sidecar.
 historian's HTTP API (`/health`, `/api/measurements/latest`,
 `/api/measurements`) and never touches BLE, SQLite, or the node WebSocket. The
 window uses client-side chrome (titlebar, close, drag, edge resize). A startup
-preflight probes `/health` and can start a `yunmai-noble.service` user unit or
-the dev suite before opening. The first scaffold polls every two seconds; SSE
-live readings, a trend chart, and simulator controls come next. Packaging pairs
-it with the suite in the Ubuntu `.deb`.
+preflight probes `/health` and can start a packaged `yunmai-noble.service`
+system or user unit, or the dev suite, before opening. The titlebar Settings
+dialog has the driver selector: it reads `/api/suite`, starts the chosen
+driver, stops the others, and persists the choice in the user config. The
+desktop app is the control surface; the service is one suite process. It polls every two seconds;
+SSE live readings and a trend chart come next. A second GPUI binary,
+`apps/simulator`, is a virtual-scale control surface for the simulator driver.
+It uses the same `/api/suite/simulator` API as the web page and is launched from
+the Settings dialog; it never talks to D-Bus directly. Both apps render the
+same physical-scale platform from `crates/ui-kit`: the dashboard uses it as a
+read-only display of the latest reading, and the simulator makes it clickable. The Ubuntu `.deb` ships
+both apps with the suite.
 
 ## Ports
 
@@ -137,5 +148,6 @@ No test should require a Bluetooth adapter or an external database.
 
 - **Single host / Pi:** node and historian together, SQLite file, one HTTP port.
 - **Split:** node at the edge; historian and database remote.
-- **Desktop:** Ubuntu `.deb` runs the service and a Rust/GPUI client that
-  connects to loopback HTTP.
+- **Desktop:** the `yunmai-noble` `.deb` runs the service and a Rust/GPUI
+  client that connects to loopback HTTP; `yunmai-noble-simulator` adds a
+  parallel virtual-scale service on port 3100.

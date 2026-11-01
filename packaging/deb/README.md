@@ -1,0 +1,118 @@
+# Debian packages
+
+Two packages are built from one staged runtime:
+
+| Package | Purpose | Port | Data |
+| --- | --- | --- | --- |
+| `yunmai-noble` | Real scale service, web UI, desktop client, simulator UI | `3000` | `/var/lib/yunmai-noble` |
+| `yunmai-noble-simulator` | Virtual scale for demos | `3100` | `/var/lib/yunmai-noble-simulator` |
+
+`yunmai-noble-simulator` depends on the exact `yunmai-noble` version and adds
+only a unit, a config file, and a desktop entry. Both services run from the
+same `/usr/lib/yunmai-noble` tree, so installing the simulator does not
+duplicate the Bun runtime or the app sources.
+
+The desktop client is the primary way to choose the driver: it starts the
+selected suite driver and stops the others through `/api/suite`. When the
+simulator driver is active, it launches `yunmai-noble-simulator-ui`, a remote
+control for `/api/suite/simulator`. The simulator package is therefore optional
+and only useful for running a demo instance in parallel with the real service.
+
+## Layout
+
+```
+/usr/bin/yunmai-noble                       wrapper -> bundled Bun + suite
+/usr/bin/yunmai-noble-desktop               GPUI client
+/usr/bin/yunmai-noble-simulator-ui          GPUI simulator control app
+/usr/lib/yunmai-noble/runtime/bun           bundled Bun (self-contained)
+/usr/lib/yunmai-noble/packages/             app sources + node_modules + ui/dist
+/usr/lib/systemd/system/yunmai-noble.service
+/usr/lib/systemd/system/yunmai-noble-simulator.service
+/etc/yunmai-noble/config.toml               main conffile
+/etc/yunmai-noble/config.env                main env overrides (conffile)
+/etc/yunmai-noble/simulator.toml            simulator conffile
+/etc/yunmai-noble/simulator.env             simulator env overrides (conffile)
+/usr/share/applications/yunmai-noble.desktop
+/usr/share/applications/yunmai-noble-simulator.desktop
+/usr/share/icons/hicolor/scalable/apps/yunmai-noble.svg
+/var/lib/yunmai-noble/                      SQLite database
+/var/lib/yunmai-noble-simulator/            SQLite database
+```
+
+Both units run as the unprivileged `yunmai` user. The main unit joins the
+`bluetooth` group when BlueZ is installed so it can reach `org.bluez` on the
+system D-Bus.
+
+## Build
+
+```sh
+bun install
+packaging/deb/build.sh
+# or: bun run deb
+```
+
+Outputs `dist/deb/yunmai-noble_<version>_<arch>.deb` and
+`dist/deb/yunmai-noble-simulator_<version>_<arch>.deb`. The script builds the
+web UI, stages a clean workspace copy, runs
+`bun install --production --frozen-lockfile --omit=peer --omit=optional`,
+builds the desktop client and simulator UI with Cargo, and assembles both
+control trees.
+
+Useful flags:
+
+- `--skip-desktop` builds the service without the GPUI clients (desktop and
+  simulator UI).
+- `--skip-bun` skips the bundled runtime; the wrapper then uses `bun` from
+  `PATH` (development only).
+- `--libc <version>` overrides the detected `libc6` minimum.
+- `--stage <dir>` keeps the staged trees for inspection.
+
+`--omit=optional` is what keeps the legacy `@abandonware/noble` addon out of
+the package; it requires Node 22 and does not load under Bun. The `dbus`
+driver is the only hardware path shipped.
+
+## Install
+
+```sh
+sudo apt install ./yunmai-noble_0.1.0_amd64.deb
+sudo apt install ./yunmai-noble-simulator_0.1.0_amd64.deb   # optional
+```
+
+The post-install script creates the `yunmai` user and data directories,
+enables and starts the units, and reloads systemd. `apt remove` stops and
+disables the units but keeps the databases; `apt purge` removes the data and
+the user.
+
+```sh
+systemctl status yunmai-noble
+journalctl -u yunmai-noble -f
+xdg-open http://127.0.0.1:3000/
+```
+
+## Desktop launcher
+
+The client probes `/health` before opening. When the historian is unreachable
+and the URL is loopback, it starts the packaged system unit and waits for it.
+`YUNMAI_SERVICE` selects the unit, which is how the simulator entry starts
+`yunmai-noble-simulator.service` instead. `YUNMAI_AUTOSTART=none` disables the
+whole path.
+
+## Driver support
+
+`simulator` and `dbus` work from the packaged runtime. The default package
+omits the native `noble` addon, so the suite does not advertise Node bindings:
+it needs Node 22, `@abandonware/noble`, and `CAP_NET_RAW`/`CAP_NET_ADMIN` for
+the service user. The desktop client disables the option; direct API starts
+fail fast with that message instead of restarting. A future `--with-noble`
+build can install the optional dependencies and add the Node dependency and
+unit capabilities.
+
+## Constraints
+
+- The GPUI binaries link the build host's glibc; the script derives the
+  `libc6` dependency from them. Build on the oldest distro you support, or
+  use a container, when targeting older releases.
+- The package is architecture-specific. Build `arm64` on an `arm64` host or
+  with an `arm64` Bun binary; the Rust client needs a matching cross toolchain.
+- `bluez` is recommended, not required: without it the historian and web UI
+  still run, but the `dbus` driver cannot reach a scale.

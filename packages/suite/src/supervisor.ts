@@ -16,6 +16,30 @@ const NODE_SCRIPT = fileURLToPath(
 );
 const NODE_DIR = dirname(NODE_SCRIPT);
 
+function nobleInstalled(): boolean {
+  try {
+    Bun.resolveSync("@abandonware/noble", NODE_DIR);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function nodeMajor(runtime: string): number | null {
+  try {
+    const result = Bun.spawnSync({
+      cmd: [runtime, "--version"],
+      stdout: "pipe",
+      stderr: "ignore",
+    });
+    if (result.exitCode !== 0) return null;
+    const match = result.stdout.toString().trim().match(/^v(\d+)/);
+    return match ? Number(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 const READY_TIMEOUT_MS = 5000;
 const READY_POLL_MS = 50;
 
@@ -130,6 +154,7 @@ export class DriverSupervisor {
   ) => void;
   private readonly bunRuntime: string;
   private readonly nodeRuntime: string | null;
+  private readonly nobleAvailable: boolean;
   private readonly records = new Map<DriverName, DriverRecord>();
 
   constructor(options: SupervisorOptions) {
@@ -144,6 +169,12 @@ export class DriverSupervisor {
       options.nodeRuntime !== undefined
         ? options.nodeRuntime
         : Bun.which("node");
+
+    const major = this.nodeRuntime ? nodeMajor(this.nodeRuntime) : null;
+    this.nobleAvailable =
+      this.nodeRuntime !== null &&
+      (major === null || major >= 22) &&
+      nobleInstalled();
 
     for (const driver of DRIVERS) {
       this.records.set(driver, {
@@ -172,6 +203,14 @@ export class DriverSupervisor {
 
   list(): DriverView[] {
     return DRIVERS.map((driver) => this.view(this.require(driver)));
+  }
+
+  // Drivers the service can actually start. The desktop client disables the
+  // rest instead of letting the user pick a guaranteed failure.
+  availableDrivers(): DriverName[] {
+    return DRIVERS.filter(
+      (driver) => this.nobleAvailable || driver !== "noble"
+    );
   }
 
   start(driver: DriverName): DriverView {
@@ -260,6 +299,23 @@ export class DriverSupervisor {
     if (!runtime) {
       this.fail(record, "BLE_DRIVER=noble requires node on PATH");
       return;
+    }
+
+    // Fail fast instead of entering the restart loop when the legacy driver
+    // cannot possibly start. The desktop client surfaces this message.
+    if (record.driver === "noble") {
+      const major = nodeMajor(runtime);
+      if (major !== null && major < 22) {
+        this.fail(record, `noble requires Node 22 or newer (found ${major})`);
+        return;
+      }
+      if (!nobleInstalled()) {
+        this.fail(
+          record,
+          "noble is not installed on the service host (install @abandonware/noble)"
+        );
+        return;
+      }
     }
 
     let wsPort: number;

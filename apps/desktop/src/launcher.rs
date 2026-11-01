@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::api::HistorianClient;
 
-const SERVICE: &str = "yunmai-noble.service";
+const DEFAULT_SERVICE: &str = "yunmai-noble.service";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Autostart {
@@ -98,20 +98,92 @@ pub fn is_loopback_url(url: &str) -> bool {
     matches!(host, "127.0.0.1" | "localhost" | "::1")
 }
 
-fn systemd_unit_available() -> bool {
+/// Unit started by autostart. The simulator package overrides this with
+/// `YUNMAI_SERVICE=yunmai-noble-simulator.service`.
+fn service_name() -> String {
+    service_name_from(std::env::var("YUNMAI_SERVICE").ok().as_deref())
+}
+
+fn service_name_from(value: Option<&str>) -> String {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_SERVICE)
+        .to_string()
+}
+
+fn user_unit_available() -> bool {
     Command::new("systemctl")
-        .args(["--user", "cat", SERVICE])
+        .args(["--user", "cat", &service_name()])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
 }
 
-fn start_systemd() -> bool {
+fn system_unit_available() -> bool {
     Command::new("systemctl")
-        .args(["--user", "start", SERVICE])
+        .args(["cat", &service_name()])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
+}
+
+fn systemd_unit_available() -> bool {
+    user_unit_available() || system_unit_available()
+}
+
+fn start_systemd() -> bool {
+    let service = service_name();
+    let user = Command::new("systemctl")
+        .args(["--user", "start", &service])
+        .status()
+        .is_ok_and(|status| status.success());
+
+    user || Command::new("systemctl")
+        .args(["start", &service])
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+const SIMULATOR_UI: &str = "yunmai-noble-simulator-ui";
+
+/// Launch the standalone simulator control app against the same suite. The
+/// child is detached so closing the main window leaves the simulator running.
+pub fn launch_simulator_ui(base_url: &str) -> Result<(), String> {
+    let binary = std::env::var_os("YUNMAI_SIMULATOR_UI")
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.parent().map(|parent| parent.join(SIMULATOR_UI)))
+                .filter(|path| path.is_file())
+        })
+        .or_else(|| find_binary(SIMULATOR_UI))
+        .ok_or_else(|| {
+            "simulator UI is not built; run cargo build -p yunmai-noble-simulator-ui".to_string()
+        })?;
+
+    let mut command = Command::new(binary);
+    command
+        .arg("--historian")
+        .arg(base_url)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("could not launch the simulator UI: {error}"))
 }
 
 fn start_dev() -> bool {
@@ -206,6 +278,16 @@ mod tests {
         assert!(is_loopback_url("http://[::1]:3000"));
         assert!(!is_loopback_url("http://pi.local:3000"));
         assert!(!is_loopback_url("https://example.com"));
+    }
+
+    #[test]
+    fn selects_service_unit_from_env() {
+        assert_eq!(service_name_from(None), "yunmai-noble.service");
+        assert_eq!(service_name_from(Some("  ")), "yunmai-noble.service");
+        assert_eq!(
+            service_name_from(Some("yunmai-noble-simulator.service")),
+            "yunmai-noble-simulator.service"
+        );
     }
 
     #[test]

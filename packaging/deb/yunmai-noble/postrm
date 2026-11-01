@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+fi
+
+if [ "$1" = "purge" ]; then
+  rm -rf /var/lib/yunmai-noble
+  if command -v deluser >/dev/null 2>&1; then
+    deluser --system yunmai >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

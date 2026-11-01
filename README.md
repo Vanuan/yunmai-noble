@@ -3,9 +3,6 @@
 Yunmai scales BLE node, simulator, weight historian, web dashboard, and a
 single-executable suite that runs them together.
 
-![Dashboard and virtual scale](docs/screenshot.png)
-
-_Dashboard (left) and the simulator web app (right), both served by the suite._
 
 ## Quick start
 
@@ -110,9 +107,13 @@ seconds and accepts the same commands as the hardware. Tune it under
 the protocol: `start`, `stop`, `history`, `unit kg|lb`, `user <id>`. It is for
 inspecting packets and acks, not for feeding the node.
 
-The virtual scale has its own page at `/simulator/`, separate from the
-dashboard: power switch, weight and user fields, Step on / Step off, and Replay
-history. The same controls are available as JSON:
+The desktop client can start the simulator driver from its Settings dialog,
+so a separate service is not needed for normal use. When the Simulator driver
+is active, **Settings → Open simulator** launches the standalone GPUI simulator
+control app (`apps/simulator`). The virtual scale also has its own page at
+`/simulator/`, separate from the dashboard: power switch, weight and user
+fields, Step on / Step off, and Replay history. The same controls are available
+as JSON:
 
 ```sh
 GET  /api/suite/simulator
@@ -135,21 +136,53 @@ portability notes.
 
 `apps/desktop` is a native Rust client built with
 [`gpui-unofficial`](https://crates.io/crates/gpui-unofficial), the published
-build of Zed's GPUI. It is a read-only scaffold today: it polls the historian
-and shows the latest reading, status, and history.
+build of Zed's GPUI. It polls the historian for the latest reading, status,
+and history, and selects the active Bluetooth driver from the suite in its
+Settings dialog: simulator, D-Bus, or node bindings (`noble`). The latest
+reading is shown on the same virtual scale platform used by the simulator app,
+so the dashboard mirrors what the user stepped on. When the simulator is
+active, the dialog also launches the separate GPUI virtual-scale app.
 
 ```sh
-bun run lab                              # historian + simulator
-cargo run -p yunmai-noble-desktop        # or: bun run desktop
+bun run lab             # historian + simulator
+bun run desktop         # builds the simulator UI, then runs the desktop client
+bun run simulator-ui    # run the simulator control app on its own
 ```
 
 Point it at another historian with `--historian <url>` or
 `YUNMAI_HISTORIAN_URL`. It uses only the HTTP API; BLE, SQLite, and the node
 WebSocket stay behind the historian. On startup it probes `/health` and, when
-the URL is loopback and nothing is running, starts a `yunmai-noble.service`
-user unit or the dev suite (`--no-autostart` / `YUNMAI_AUTOSTART=none` to
-disable). See [apps/desktop/README.md](apps/desktop/README.md) for requirements
-and the remaining SSE/trend/packaging work.
+the URL is loopback and nothing is running, starts the packaged
+`yunmai-noble.service` system unit (or a user unit, or the dev suite).
+`YUNMAI_SERVICE` selects another unit and `--no-autostart` /
+`YUNMAI_AUTOSTART=none` disables autostart. The Settings dialog starts the
+chosen suite driver and stops the others; the choice is remembered in
+`~/.config/yunmai-noble/desktop.json`. See
+[apps/desktop/README.md](apps/desktop/README.md) for requirements and the
+remaining SSE/trend work.
+
+## Debian packages
+
+Two packages are built with `dpkg-deb`:
+
+```sh
+bun install
+packaging/deb/build.sh                   # writes dist/deb/*.deb
+sudo apt install ./dist/deb/yunmai-noble_0.1.0_amd64.deb
+```
+
+| Package | What it installs |
+| --- | --- |
+| `yunmai-noble` | `/usr/bin/yunmai-noble` with a bundled Bun, the app sources under `/usr/lib/yunmai-noble`, `yunmai-noble.service` on port 3000, `/etc/yunmai-noble/config.toml`, `/usr/bin/yunmai-noble-desktop` with a menu entry and driver picker, and `/usr/bin/yunmai-noble-simulator-ui` |
+| `yunmai-noble-simulator` | Optional parallel demo: `yunmai-noble-simulator.service` on port 3100, `/etc/yunmai-noble/simulator.toml`, and a simulator menu entry; depends on the main package and shares its runtime |
+
+The service runs as the `yunmai` user and keeps its SQLite database under
+`/var/lib/yunmai-noble` (or `/var/lib/yunmai-noble-simulator`). The main
+service can switch to the simulator driver from the desktop app, so the
+simulator package is only needed for a second instance running in parallel.
+`apt remove` keeps data; `apt purge` removes it. See
+[packaging/deb/README.md](packaging/deb/README.md) for the layout, build
+flags, and glibc/architecture notes.
 
 ## BLE drivers
 
@@ -190,6 +223,9 @@ packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
 packages/suite      Single executable: historian + UI + driver supervisor
 packages/ui         React/Vite/Tailwind dashboard and simulator app
 apps/desktop        Rust/GPUI desktop client
+apps/simulator      Rust/GPUI virtual-scale control app
+crates/ui-kit       Shared GPUI scale platform and visual primitives
+packaging/deb       Debian package build and assets
 docs/               screenshots
 lab.toml            simulator-only development config
 project/            design and status documents
@@ -202,4 +238,5 @@ yunmai-noble.example.toml  sample suite configuration
   [Architecture](project/ARCHITECTURE.md)
 - [WebSocket contract](project/WEBSOCKET.md)
 - [Historian design](project/HISTORIAN.md)
+- [D-Bus simulator design](project/DBUS_SIMULATOR.md)
 - [Deployment plan](project/DEPLOYMENT.md)

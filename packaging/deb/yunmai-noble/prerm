@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  remove|deconfigure)
+    if [ -d /run/systemd/system ]; then
+      systemctl stop yunmai-noble.service >/dev/null 2>&1 || true
+      systemctl disable yunmai-noble.service >/dev/null 2>&1 || true
+    fi
+    ;;
+esac
+
+exit 0

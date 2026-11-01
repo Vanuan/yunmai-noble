@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+if ! id -u yunmai >/dev/null 2>&1; then
+  adduser --system --group --home /var/lib/yunmai-noble \
+    --no-create-home --quiet yunmai
+fi
+
+mkdir -p /var/lib/yunmai-noble
+chown yunmai:yunmai /var/lib/yunmai-noble
+chmod 0755 /var/lib/yunmai-noble
+
+# BlueZ grants the bluetooth group access to org.bluez on the system bus.
+# The group is optional so the package also works before bluez is installed.
+if getent group bluetooth >/dev/null 2>&1; then
+  adduser --quiet yunmai bluetooth >/dev/null 2>&1 || true
+fi
+
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  systemctl enable yunmai-noble.service || true
+  systemctl restart yunmai-noble.service || true
+fi
+
+exit 0

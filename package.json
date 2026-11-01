@@ -14,12 +14,14 @@
     "historian": "bun run packages/historian/src/main.ts",
     "suite": "bun run packages/suite/src/main.ts",
     "lab": "bun run packages/suite/src/main.ts --config lab.toml",
-    "desktop": "cargo run -p yunmai-noble-desktop",
-    "test:rust": "cargo test -p yunmai-noble-desktop",
-    "check:rust": "cargo check -p yunmai-noble-desktop",
+    "desktop": "cargo build -p yunmai-noble-simulator-ui && cargo run -p yunmai-noble-desktop",
+    "simulator-ui": "cargo run -p yunmai-noble-simulator-ui",
+    "test:rust": "cargo test -p yunmai-noble-desktop -p yunmai-noble-simulator-ui",
+    "check:rust": "cargo check -p yunmai-noble-desktop -p yunmai-noble-simulator-ui",
     "ui": "bun run --cwd packages/ui dev",
     "build:ui": "bun run --cwd packages/ui build",
-    "test": "bun test",
+    "deb": "packaging/deb/build.sh",
+    "test": "bun test packages",
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/ui"
   },
   "trustedDependencies": [

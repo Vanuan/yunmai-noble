@@ -1,0 +1,17 @@
+[package]
+name = "yunmai-noble-simulator-ui"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "yunmai-noble-simulator-ui"
+path = "src/main.rs"
+
+[dependencies]
+gpui-unofficial = "1.27.0-pre"
+gpui_platform = { package = "gpui-platform-gpui-unofficial", version = "1.27.0-pre" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2.12", features = ["json"] }
+yunmai-noble-ui-kit = { path = "../../crates/ui-kit" }

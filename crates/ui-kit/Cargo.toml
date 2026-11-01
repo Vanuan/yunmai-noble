@@ -1,0 +1,8 @@
+[package]
+name = "yunmai-noble-ui-kit"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+gpui-unofficial = "1.27.0-pre"

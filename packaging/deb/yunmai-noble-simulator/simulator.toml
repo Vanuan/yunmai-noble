@@ -1,0 +1,27 @@
+# yunmai-noble simulator configuration.
+#
+# This service is independent of the real Bluetooth service and listens
+# on loopback only. Drive the virtual scale from the web app at
+# http://127.0.0.1:3100/simulator/ or the desktop simulator entry.
+#
+# Environment variables in /etc/yunmai-noble/simulator.env override
+# these values.
+
+[historian]
+host = "127.0.0.1"
+port = 3100
+database_path = "/var/lib/yunmai-noble-simulator/historian.sqlite"
+
+[drivers]
+initial = ["simulator"]
+node_id_prefix = "sim"
+restart_ms = 2000
+
+[simulator]
+name = "YUNMAI-SIM"
+weight_kg = 72.4
+steps = 8
+interval_ms = 250
+cycle_delay_ms = 5000
+auto_start = false
+repeat = false

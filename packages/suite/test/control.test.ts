@@ -25,8 +25,12 @@ function view(overrides: Partial<DriverView> = {}): DriverView {
   };
 }
 
-function supervisor(overrides: Partial<DriverView> = {}): DriverSupervisor {
+function supervisor(
+  overrides: Partial<DriverView> = {},
+  available: DriverView["driver"][] = ["dbus", "simulator", "noble"]
+): DriverSupervisor {
   return {
+    availableDrivers: () => available,
     list: () => [
       view({
         desired: true,
@@ -72,9 +76,12 @@ function request(method: string, path: string, body?: unknown): Request {
   });
 }
 
-function options(driver: Partial<DriverView> = {}) {
+function options(
+  driver: Partial<DriverView> = {},
+  available?: DriverView["driver"][]
+) {
   return {
-    supervisor: supervisor(driver),
+    supervisor: supervisor(driver, available),
     ingests: ingests(),
   };
 }
@@ -104,6 +111,18 @@ test("lists drivers with their upstream status", async () => {
     lastMessageAt: "2026-11-01T10:00:01.000Z",
     lastError: null,
   });
+});
+
+test("omits drivers the service cannot run", async () => {
+  const response = await handleSuiteRequest(
+    request("GET", "/api/suite"),
+    url("/api/suite"),
+    options({}, ["dbus", "simulator"])
+  );
+
+  assert.ok(response);
+  const body = (await response.json()) as { available: string[] };
+  assert.deepEqual(body.available, ["dbus", "simulator"]);
 });
 
 test("starts and stops a driver", async () => {

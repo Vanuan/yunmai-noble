@@ -1,8 +1,12 @@
 [Desktop Entry]
 Type=Application
 Name=Yunmai Noble
-Comment=Weight dashboard for Yunmai scales
+GenericName=Bluetooth scale dashboard
+Comment=Read your Yunmai scale and browse measurements
 Exec=yunmai-noble-desktop
+Icon=yunmai-noble
 Terminal=false
-Categories=Utility;Health;
+Categories=Utility;
+Keywords=scale;weight;bluetooth;
 StartupNotify=true
+StartupWMClass=yunmai-noble-desktop

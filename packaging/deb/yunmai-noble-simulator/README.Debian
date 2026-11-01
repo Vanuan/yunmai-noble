@@ -1,0 +1,20 @@
+yunmai-noble-simulator
+======================
+
+The virtual scale runs as a separate service on loopback:
+
+  systemctl status yunmai-noble-simulator
+  journalctl -u yunmai-noble-simulator -f
+
+Open the simulator web app at http://127.0.0.1:3100/simulator/ to power
+the scale, pick a weight, and step on and off. Measurements are stored
+in /var/lib/yunmai-noble-simulator/historian.sqlite.
+
+The "Yunmai Noble Simulator" desktop entry opens the same client against
+port 3100 and starts this service on demand.
+
+Configuration: /etc/yunmai-noble/simulator.toml
+Environment:   /etc/yunmai-noble/simulator.env
+
+The real Bluetooth service keeps running on port 3000 and its own
+database; the two services do not share state.
