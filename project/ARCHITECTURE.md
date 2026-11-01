@@ -53,7 +53,7 @@ storage queries are internal.
 | `packages/historian` | Ingest, store port, HTTP API, served UI assets | BLE/HCI code |
 | `packages/suite` | One executable: historian, UI, driver supervision, control API | BLE packet parsing or storage |
 | `packages/ui` | HTML/CSS/JS assets for the browser UI | Direct BLE or DB access |
-| `apps/desktop` | Rust/GPUI desktop client | Direct BLE, DB, or systemd access |
+| `apps/desktop` | Rust/GPUI desktop client using the HTTP API | Direct BLE, DB, or systemd access |
 
 ## Single executable
 
@@ -69,6 +69,15 @@ routes are proxied to a loopback control server in the simulator node; the
 virtual scale app at `/simulator/` uses them for a power switch, weight, user,
 step-on, and history replay. A desktop distribution can embed this supervisor
 or ship it as a sidecar.
+
+## Desktop client
+
+`apps/desktop` is a Rust/GPUI client built on `gpui-unofficial`. It reads the
+historian's HTTP API (`/health`, `/api/measurements/latest`,
+`/api/measurements`) and never touches BLE, SQLite, or the node WebSocket. The
+first scaffold polls every two seconds; SSE live readings, a trend chart, and
+simulator controls come next. Packaging pairs it with the suite in the Ubuntu
+`.deb`.
 
 ## Ports
 
@@ -118,6 +127,7 @@ selects another file; environment variables override file values.
 - Persistence: in-memory store and temporary SQLite files.
 - HTTP: ephemeral server plus `fetch`.
 - Contract: zod schema tests.
+- Desktop: Rust unit tests for DTO parsing and formatting.
 
 No test should require a Bluetooth adapter or an external database.
 

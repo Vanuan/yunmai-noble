@@ -1,5 +1,6 @@
 node_modules/
 dist/
 data/
+target/
 yunmai-noble.toml
 yarn-error.log

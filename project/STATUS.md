@@ -46,13 +46,16 @@ API and live relay. The desktop client is still missing. See
   weight, user, step-on, step-off, and history replay; the node exposes a
   loopback control server and the suite proxies it at `/api/suite/simulator`.
 - `lab.toml`: hardware-free simulator profile on loopback (`bun run lab`).
-- 81 Bun tests and `tsc --noEmit`.
+- `apps/desktop`: Rust/GPUI read-only client using `gpui-unofficial`. It polls
+the historian and shows latest weight, service/upstream status, and history.
+- 81 Bun tests, 6 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.
 
 ## Not implemented
 
-- Rust/GPUI desktop client and single-binary packaging.
+- SSE live readings, trend chart, and simulator controls in the desktop client;
+  single-binary and `.deb` packaging.
 - Reconnect loop and packet validation in the node; the suite restarts exited
   drivers but does not resume a BLE session.
 - Remaining node configuration (`HISTORIAN_URL`, name filter, UUIDs).
@@ -72,6 +75,10 @@ API and live relay. The desktop client is still missing. See
 - `node-ble`/`dbus-next` report transitive npm audit findings.
 - The historian keeps a v0 adapter for older nodes; the fallback status page
   remains for installations without a built UI.
+- The desktop client polls every 2 s; SSE is next. It needs Wayland/X11, Vulkan,
+  and fontconfig.
+- GPUI is pre-1.0 and consumed through the unofficial crates.io build, so minor
+  API churn is expected.
 - SQLite is single-instance; cloud deployment will need Postgres.
 - Disconnect calls `process.exit(0)`; the device-name filter and UUIDs are
   hardcoded.

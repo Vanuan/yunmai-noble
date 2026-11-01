@@ -95,7 +95,8 @@ Package the stack natively and expose it on the local network.
 
 Ship two packages: a systemd service and a native Rust/GPUI desktop client.
 The app talks only to the service's local HTTP API; it never accesses BLE,
-SQLite, or the database directly.
+SQLite, or the database directly. The desktop crate now lives in
+`apps/desktop`; packaging and SSE live updates are the remaining steps.
 
 ### Service package (`yunmai-noble`)
 

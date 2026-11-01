@@ -9,7 +9,8 @@ _Dashboard (left) and the simulator web app (right), both served by the suite._
 
 ## Quick start
 
-Requires Node 22 (`.nvmrc`) and Bun 1.3+.
+Requires Node 22 (`.nvmrc`) and Bun 1.3+. The desktop client additionally needs
+Rust stable.
 
 ```sh
 bun install
@@ -130,6 +131,24 @@ Both are built into `packages/ui/dist`. See
 [packages/ui/README.md](packages/ui/README.md) for development and GPUI
 portability notes.
 
+## Desktop
+
+`apps/desktop` is a native Rust client built with
+[`gpui-unofficial`](https://crates.io/crates/gpui-unofficial), the published
+build of Zed's GPUI. It is a read-only scaffold today: it polls the historian
+and shows the latest reading, status, and history.
+
+```sh
+bun run lab                              # historian + simulator
+cargo run -p yunmai-noble-desktop        # or: bun run desktop
+```
+
+Point it at another historian with `--historian <url>` or
+`YUNMAI_HISTORIAN_URL`. It uses only the HTTP API; BLE, SQLite, and the node
+WebSocket stay behind the historian. See
+[apps/desktop/README.md](apps/desktop/README.md) for requirements and the
+remaining SSE/trend/packaging work.
+
 ## BLE drivers
 
 - `dbus` (default): needs BlueZ and the system D-Bus socket. On NixOS, enable
@@ -168,7 +187,7 @@ packages/contract   WebSocket v1 schemas and types
 packages/historian  SQLite, HTTP API, SSE, v0/v1 ingest
 packages/suite      Single executable: historian + UI + driver supervisor
 packages/ui         React/Vite/Tailwind dashboard and simulator app
-apps/desktop        planned Rust/GPUI desktop client
+apps/desktop        Rust/GPUI desktop client
 docs/               screenshots
 lab.toml            simulator-only development config
 project/            design and status documents
