@@ -1,5 +1,5 @@
-var noble = require('noble');
-var Parser = require('binary-parser').Parser;
+var noble = require('./src/bluetooth').createLink();
+var protocol = require('./src/yunmai/protocol');
 const WebSocket = require('ws');
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -81,51 +81,19 @@ function explore(peripheral) {
   });
 }
 
-function parsePacket(buffer) {
-  const packetParser = new Parser()
-    .uint8('packetSignature')
-    .uint8('firmwareVersion')
-    .uint8('packetLength')
-    .uint8('packetType')
-    .buffer('data', {
-      type: 'int32',
-      length: function() { return this.packetLength - 5; }
-    })
-    .uint8('checksum');
-  return packetParser.parse(buffer)
-}
-
-const parseWeightingProgress = (buffer) => {
-  const weightingParser = new Parser()
-    .uint32be('date')
-    .uint16be('weight')
-  return weightingParser.parse(buffer);
-}
-
-const parseWeightingCompleted = (buffer) => {
-  const weightingCompletedParser = new Parser()
-    .uint8('historicalInfo')
-    .uint32be('date')
-    .uint32be('userId')
-    .uint16be('weight')
-    .uint16be('resistance')
-    .uint16be('fatPercentage')
-
-  return weightingCompletedParser.parse(buffer)
-}
 
 function handleWeighting(data) {
-  const packet = parsePacket(data);
-  if(packet.packetType === 1) {
-    const measuring = parseWeightingProgress(packet.data);
+  const packet = protocol.parsePacket(data);
+  if(packet.packetType === protocol.PacketType.MEASURING) {
+    const measuring = protocol.parseWeightingProgress(packet.data);
     display(measuring);
     broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measuring', data: measuring });
-  } else if(packet.packetType === 2) {
-    const measured = parseWeightingCompleted(packet.data);
+  } else if(packet.packetType === protocol.PacketType.MEASURED) {
+    const measured = protocol.parseWeightingCompleted(packet.data);
     display(measured);
     broadcast({ firmwareVersion: packet.firmwareVersion, packetType: 'measured', data: measured });
   } else {
-    broadcast({ data: packetType.data, packetType: 'unknown' });
+    broadcast({ firmwareVersion: packet.firmwareVersion, data: packet.data, packetType: 'unknown' });
   }
 }
 
