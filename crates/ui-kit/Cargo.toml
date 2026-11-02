@@ -6,3 +6,4 @@ publish = false
 
 [dependencies]
 gpui-unofficial = "1.27.0-pre"
+image = { version = "0.25", default-features = false, features = ["png"] }

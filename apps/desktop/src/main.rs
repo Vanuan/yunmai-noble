@@ -11,6 +11,7 @@ use gpui_platform::application;
 
 use crate::app::Dashboard;
 use crate::launcher::Autostart;
+use yunmai_noble_ui_kit::window_icon;
 
 actions!(yunmai_noble, [Quit]);
 
@@ -66,6 +67,10 @@ fn main() {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 window_background: WindowBackgroundAppearance::Opaque,
                 window_decorations: Some(WindowDecorations::Client),
+                // Match the window to `yunmai-noble.desktop` so the desktop
+                // environment can pick up the application icon.
+                app_id: Some("yunmai-noble".into()),
+                icon: Some(window_icon()),
                 ..Default::default()
             },
             move |_, cx| cx.new(|cx| Dashboard::new(historian_url.clone(), cx)),

@@ -9,4 +9,4 @@ Terminal=false
 Categories=Utility;
 Keywords=scale;weight;bluetooth;
 StartupNotify=true
-StartupWMClass=yunmai-noble-desktop
+StartupWMClass=yunmai-noble

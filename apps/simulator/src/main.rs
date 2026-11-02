@@ -8,6 +8,7 @@ use gpui::{
 use gpui_platform::application;
 
 use crate::app::SimulatorApp;
+use yunmai_noble_ui_kit::window_icon;
 
 actions!(yunmai_noble_simulator, [Quit]);
 
@@ -53,6 +54,10 @@ fn main() {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 window_background: WindowBackgroundAppearance::Opaque,
                 window_decorations: Some(WindowDecorations::Client),
+                // Match the window to `yunmai-noble-simulator.desktop` so the
+                // desktop environment can pick up the application icon.
+                app_id: Some("yunmai-noble-simulator".into()),
+                icon: Some(window_icon()),
                 ..Default::default()
             },
             move |_, cx| cx.new(|cx| SimulatorApp::new(historian_url.clone(), cx)),

@@ -6474,6 +6474,7 @@ name = "yunmai-noble-ui-kit"
 version = "0.1.0"
 dependencies = [
  "gpui-unofficial",
+ "image",
 ]
 
 [[package]]
