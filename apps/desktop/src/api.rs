@@ -20,8 +20,8 @@ pub struct Measurement {
 #[derive(Clone, Debug, Deserialize)]
 pub struct MeasurementsResponse {
     pub measurements: Vec<Measurement>,
-    /// Pagination cursor; kept for the next API step.
-    #[allow(dead_code)]
+    /// Cursor for the next page: the oldest `scaleDate` in this page, present
+    /// only when the page was full.
     pub next: Option<String>,
 }
 
@@ -108,7 +108,7 @@ impl HistorianClient {
     pub fn snapshot(&self) -> Result<Snapshot, String> {
         let health = self.get_health()?;
         let latest = self.get_optional::<Measurement>("/api/measurements/latest")?;
-        let measurements = self.get_json::<MeasurementsResponse>("/api/measurements?limit=20")?;
+        let measurements = self.measurements(20, None)?;
         // A standalone historian does not mount the suite control API.
         let suite = self.get_optional::<SuiteState>("/api/suite")?;
 
@@ -118,6 +118,21 @@ impl HistorianClient {
             measurements: measurements.measurements,
             suite,
         })
+    }
+
+    /// One page of stored measurements, newest first. `before` is the `next`
+    /// cursor of the previous page.
+    pub fn measurements(
+        &self,
+        limit: usize,
+        before: Option<&str>,
+    ) -> Result<MeasurementsResponse, String> {
+        let mut path = format!("/api/measurements?limit={limit}");
+        if let Some(cursor) = before {
+            path.push_str("&before=");
+            path.push_str(&encode_query(cursor));
+        }
+        self.get_json(&path)
     }
 
     pub fn suite(&self) -> Result<SuiteState, String> {
@@ -184,6 +199,21 @@ impl HistorianClient {
             Err(ureq::Error::Transport(error)) => Err(format!("cannot reach historian: {error}")),
         }
     }
+}
+
+/// Percent-encode a query value. Date cursors contain `:` and `+`, which must
+/// not reach the historian raw.
+fn encode_query(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                encoded.push(byte as char)
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 fn api_message(response: ureq::Response) -> String {
@@ -318,8 +348,59 @@ mod tests {
     }
 
     #[test]
+    fn requests_the_next_page_with_the_cursor() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 2048];
+            let read = stream.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            assert!(
+                request.starts_with(
+                    "GET /api/measurements?limit=2&before=2026-11-01T13%3A35%3A26.000Z "
+                ),
+                "unexpected request: {request}"
+            );
+
+            let body = r#"{"measurements":[],"next":null}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let client = HistorianClient::new(format!("http://{address}"));
+        let page = client
+            .measurements(2, Some("2026-11-01T13:35:26.000Z"))
+            .unwrap();
+        server.join().unwrap();
+
+        assert!(page.measurements.is_empty());
+        assert!(page.next.is_none());
+    }
+
+    #[test]
     fn trims_trailing_slashes_from_the_base_url() {
         let client = HistorianClient::new("http://127.0.0.1:3000/");
         assert_eq!(client.base_url, "http://127.0.0.1:3000");
+    }
+
+    #[test]
+    fn encodes_measurement_cursors() {
+        assert_eq!(
+            encode_query("2026-11-01T13:35:26.000Z"),
+            "2026-11-01T13%3A35%3A26.000Z"
+        );
+        assert_eq!(
+            encode_query("2026-11-01T13:35:26+02:00"),
+            "2026-11-01T13%3A35%3A26%2B02%3A00"
+        );
     }
 }

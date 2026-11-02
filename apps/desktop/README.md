@@ -5,9 +5,19 @@ Native Rust desktop client for the historian API, built with
 build of Zed's GPUI).
 
 It polls the historian every two seconds and shows the latest measurement,
-service/upstream status, and recent history. A Settings dialog opened from the
-titlebar selects the active suite driver. Live SSE streaming and simulator
-controls are next.
+service/upstream status, and recent history. **View history** opens a paginated
+list of every stored reading and **Open historian** launches the web dashboard.
+A Settings dialog opened from the titlebar selects the active suite driver. Live
+SSE streaming and simulator controls are next.
+
+## History
+
+The dashboard card shows the twelve most recent readings. **View history**
+replaces the dashboard with the full list: 100 readings per page, requested as
+`GET /api/measurements?limit=100&before=<oldest scaleDate>`. Scrolling near the
+bottom, or pressing **Load more**, fetches the next page. Reopening the view
+starts again from the newest page. **Open historian** opens the web dashboard
+in the browser for charts and per-user views.
 
 ## Window chrome
 
@@ -98,7 +108,7 @@ YUNMAI_HISTORIAN_URL=http://pi.local:3000 cargo run -p yunmai-noble-desktop
 ## Layout
 
 - `src/main.rs` — window, args, key bindings, preflight call
-- `src/app.rs` — dashboard view, custom titlebar, polling loop
+- `src/app.rs` — dashboard and history views, custom titlebar, polling loop
 - `src/api.rs` — historian HTTP client and serde models
 - `src/format.rs` — weight/date formatting
 - `src/launcher.rs` — health probe and service autostart

@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime};
 
 use gpui::{
@@ -26,6 +27,25 @@ const DRIVERS: [(&str, &str, &str); 3] = [
     ("noble", "Node bindings", "Noble HCI driver, needs Node 22"),
 ];
 
+/// Measurements requested per history page; the API caps this at 500.
+const HISTORY_PAGE: usize = 100;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum View {
+    Dashboard,
+    History,
+}
+
+#[derive(Default)]
+struct HistoryState {
+    items: Vec<Measurement>,
+    next: Option<String>,
+    loading: bool,
+    error: Option<String>,
+    /// Bumped on every reload so a late response cannot append to a new list.
+    generation: u64,
+}
+
 pub struct Dashboard {
     historian_url: String,
     snapshot: Option<crate::api::Snapshot>,
@@ -38,6 +58,9 @@ pub struct Dashboard {
     driver_synced: bool,
     settings_open: bool,
     scroll_handle: ScrollHandle,
+    view: View,
+    history: HistoryState,
+    history_scroll: ScrollHandle,
 }
 
 impl Dashboard {
@@ -100,6 +123,9 @@ impl Dashboard {
             driver_synced,
             settings_open: false,
             scroll_handle: ScrollHandle::new(),
+            view: View::Dashboard,
+            history: HistoryState::default(),
+            history_scroll: ScrollHandle::new(),
         }
     }
 
@@ -593,13 +619,104 @@ impl Dashboard {
             )
     }
 
-    fn history_card(&self) -> Div {
+    fn open_history(&mut self, cx: &mut Context<Self>) {
+        self.view = View::History;
+        self.history = HistoryState {
+            generation: self.history.generation + 1,
+            ..HistoryState::default()
+        };
+        // Start at the newest reading again, not at the previous offset.
+        self.history_scroll = ScrollHandle::new();
+        self.load_history(self.history.generation, cx);
+        cx.notify();
+    }
+
+    fn close_history(&mut self, cx: &mut Context<Self>) {
+        self.view = View::Dashboard;
+        cx.notify();
+    }
+
+    /// Fetch one page. A response from before the last reload is dropped, so
+    /// reopening the view cannot interleave two lists.
+    fn load_history(&mut self, generation: u64, cx: &mut Context<Self>) {
+        if self.history.loading {
+            return;
+        }
+        self.history.loading = true;
+        self.history.error = None;
+
+        let url = self.historian_url.clone();
+        let cursor = self.history.next.clone();
+
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    HistorianClient::new(url).measurements(HISTORY_PAGE, cursor.as_deref())
+                })
+                .await;
+
+            this.update(cx, |state, cx| {
+                if state.history.generation != generation {
+                    return;
+                }
+
+                state.history.loading = false;
+                match result {
+                    Ok(page) => {
+                        state.history.next = page.next;
+                        for measurement in page.measurements {
+                            if state
+                                .history
+                                .items
+                                .iter()
+                                .all(|item| item.id != measurement.id)
+                            {
+                                state.history.items.push(measurement);
+                            }
+                        }
+                    }
+                    Err(message) => state.history.error = Some(message),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Page in as the list approaches its end.
+    fn maybe_load_more(&mut self, cx: &mut Context<Self>) {
+        if self.view != View::History || self.history.loading || self.history.next.is_none() {
+            return;
+        }
+
+        let offset = -(self.history_scroll.offset().y / px(1.));
+        let max = self.history_scroll.max_offset().y / px(1.);
+        if max - offset < 160.0 {
+            self.load_history(self.history.generation, cx);
+        }
+    }
+
+    fn open_historian(&mut self, cx: &mut Context<Self>) {
+        let url = format!("{}/", self.historian_url.trim_end_matches('/'));
+        if let Err(error) = open_in_browser(&url) {
+            self.history.error = Some(error);
+        }
+        cx.notify();
+    }
+
+    fn history_card(&self, cx: &mut Context<Self>) -> Div {
         let measurements = self
             .snapshot
             .as_ref()
             .map(|snapshot| snapshot.measurements.as_slice())
             .unwrap_or(&[]);
         let rows: Vec<Div> = measurements.iter().take(12).map(history_row).collect();
+        let count_label = if measurements.len() > rows.len() {
+            format!("{} of {}", rows.len(), measurements.len())
+        } else {
+            format!("{} readings", measurements.len())
+        };
 
         div()
             .rounded_2xl()
@@ -619,9 +736,34 @@ impl Dashboard {
                     .child(div().text_sm().text_color(rgb(MUTED)).child("History"))
                     .child(
                         div()
-                            .text_xs()
-                            .text_color(rgb(MUTED))
-                            .child(format!("{} readings", measurements.len())),
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(MUTED))
+                                    .child(count_label.clone()),
+                            )
+                            .child(
+                                div()
+                                    .id("open-history")
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .h(px(24.))
+                                    .px_2()
+                                    .rounded_md()
+                                    .text_xs()
+                                    .text_color(rgb(MUTED))
+                                    .cursor(CursorStyle::PointingHand)
+                                    .hover(|this| this.bg(rgb(BORDER)).text_color(rgb(TEXT)))
+                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation()
+                                    })
+                                    .on_click(cx.listener(|state, _, _, cx| state.open_history(cx)))
+                                    .child("View history"),
+                            ),
                     ),
             )
             .child(if rows.is_empty() {
@@ -668,6 +810,10 @@ impl Render for Dashboard {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let client_decorations = matches!(window.window_decorations(), Decorations::Client { .. });
         let settings = self.settings_open.then(|| self.settings_dialog(cx));
+        let body = match self.view {
+            View::Dashboard => self.dashboard_body(cx),
+            View::History => self.history_body(cx),
+        };
 
         div()
             .id("window")
@@ -678,88 +824,227 @@ impl Render for Dashboard {
             .bg(rgb(BG))
             .text_color(rgb(TEXT))
             .child(self.titlebar(client_decorations, cx))
-            .child(
-                div()
-                    .flex_1()
-                    .relative()
-                    .child(
-                        div()
-                            .id("content")
-                            .size_full()
-                            .overflow_y_scroll()
-                            .track_scroll(&self.scroll_handle)
-                            .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
-                            .p(px(28.))
-                            .child(
-                                div()
-                                    .w_full()
-                                    .max_w(px(860.))
-                                    .mx_auto()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_6()
-                                    .children(
-                                        self.error
-                                            .as_deref()
-                                            .or_else(|| self.upstream_error())
-                                            .map(error_banner),
-                                    )
-                                    .child(self.latest_card())
-                                    .child(self.history_card())
-                                    .child(self.footer()),
-                            ),
-                    )
-                    .child(self.scrollbar()),
-            )
+            .child(body)
             .children(client_decorations.then(resize_handles))
             .children(settings)
     }
 }
 
 impl Dashboard {
-    fn scrollbar(&self) -> Div {
-        let viewport = self.scroll_handle.bounds().size.height;
-        let max_y = self.scroll_handle.max_offset().y;
-        let viewport_px = viewport / px(1.);
-        let max_px = max_y / px(1.);
-
-        if max_px <= 0.5 || viewport_px <= 0.0 {
-            return div();
-        }
-
-        let track_px = (viewport_px - 20.0).max(0.0);
-        if track_px <= 0.0 {
-            return div();
-        }
-
-        let content_px = viewport_px + max_px;
-        let thumb_px = (track_px * viewport_px / content_px)
-            .max(24.0)
-            .min(track_px);
-        let offset_px = (-(self.scroll_handle.offset().y / px(1.))).max(0.0);
-        let ratio = (offset_px / max_px).clamp(0.0, 1.0);
-        let top_px = ratio * (track_px - thumb_px);
-
+    fn dashboard_body(&self, cx: &mut Context<Self>) -> Div {
         div()
-            .absolute()
-            .top(px(10.))
-            .right(px(6.))
-            .w(px(6.))
-            .h(px(track_px))
-            .rounded_full()
-            .bg(rgb(BORDER).opacity(0.7))
+            .flex_1()
+            .min_h(px(0.))
+            .relative()
             .child(
                 div()
-                    .absolute()
-                    .top(px(top_px))
-                    .left(px(1.))
-                    .w(px(4.))
-                    .h(px(thumb_px))
-                    .rounded_full()
-                    .bg(rgb(MUTED).opacity(0.55)),
+                    .id("content")
+                    .size_full()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.scroll_handle)
+                    .on_scroll(cx.listener(|_, _, _, cx| cx.notify()))
+                    .p(px(28.))
+                    .child(
+                        div()
+                            .w_full()
+                            .max_w(px(860.))
+                            .mx_auto()
+                            .flex()
+                            .flex_col()
+                            .gap_6()
+                            .children(
+                                self.error
+                                    .as_deref()
+                                    .or_else(|| self.upstream_error())
+                                    .map(error_banner),
+                            )
+                            .child(self.latest_card())
+                            .child(self.history_card(cx))
+                            .child(self.footer()),
+                    ),
             )
+            .child(scrollbar(&self.scroll_handle))
     }
 
+    fn history_body(&mut self, cx: &mut Context<Self>) -> Div {
+        let rows: Vec<Div> = self.history.items.iter().map(history_detail_row).collect();
+        let loaded = self.history.items.len();
+        let more = self.history.next.is_some();
+
+        div()
+            .flex_1()
+            .min_h(px(0.))
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .flex_none()
+                    .flex()
+                    .items_end()
+                    .justify_between()
+                    .gap_4()
+                    .px(px(28.))
+                    .pt(px(20.))
+                    .pb_3()
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(
+                                div()
+                                    .text_lg()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child("History"),
+                            )
+                            .child(
+                                div().text_xs().text_color(rgb(MUTED)).child(format!(
+                                    "{loaded} readings · {}",
+                                    self.historian_url
+                                )),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(button("open-historian", "Open historian", cx, |state, cx| {
+                                state.open_historian(cx)
+                            }))
+                            .child(button("close-history", "Back", cx, |state, cx| {
+                                state.close_history(cx)
+                            })),
+                    ),
+            )
+            .children(self.history.error.as_deref().map(|message| {
+                div()
+                    .flex_none()
+                    .px(px(28.))
+                    .child(error_banner(message))
+            }))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h(px(0.))
+                    .relative()
+                    .child(
+                        div()
+                            .id("history-list")
+                            .size_full()
+                            .overflow_y_scroll()
+                            .track_scroll(&self.history_scroll)
+                            .on_scroll(cx.listener(|state, _, _, cx| {
+                                state.maybe_load_more(cx);
+                                cx.notify();
+                            }))
+                            .p(px(28.))
+                            .child(
+                                div()
+                                    .w_full()
+                                    .max_w(px(860.))
+                                    .mx_auto()
+                                    .overflow_hidden()
+                                    .rounded_2xl()
+                                    .border_1()
+                                    .border_color(rgb(BORDER))
+                                    .bg(rgb(CARD))
+                                    .shadow_sm()
+                                    .children(rows)
+                                    .children((loaded == 0).then(|| {
+                                        div()
+                                            .p_6()
+                                            .text_sm()
+                                            .text_color(rgb(MUTED))
+                                            .child(if self.history.error.is_some() {
+                                                "Could not load the history."
+                                            } else if self.history.loading {
+                                                "Loading history..."
+                                            } else {
+                                                "No measurements yet. Step on the scale to get started."
+                                            })
+                                    })),
+                            ),
+                    )
+                    .child(scrollbar(&self.history_scroll)),
+            )
+            .child(
+                div()
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .px(px(28.))
+                    .py_2()
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(MUTED))
+                            .child(format!("{loaded} readings")),
+                    )
+                    .child(if more {
+                        button(
+                            "load-more",
+                            if self.history.loading {
+                                "Loading..."
+                            } else {
+                                "Load more"
+                            },
+                            cx,
+                            |state, cx| state.load_history(state.history.generation, cx),
+                        )
+                        .into_any_element()
+                    } else {
+                        div().into_any_element()
+                    }),
+            )
+    }
+}
+
+fn scrollbar(handle: &ScrollHandle) -> Div {
+    let viewport = handle.bounds().size.height;
+    let max_y = handle.max_offset().y;
+    let viewport_px = viewport / px(1.);
+    let max_px = max_y / px(1.);
+
+    if max_px <= 0.5 || viewport_px <= 0.0 {
+        return div();
+    }
+
+    let track_px = (viewport_px - 20.0).max(0.0);
+    if track_px <= 0.0 {
+        return div();
+    }
+
+    let content_px = viewport_px + max_px;
+    let thumb_px = (track_px * viewport_px / content_px)
+        .max(24.0)
+        .min(track_px);
+    let offset_px = (-(handle.offset().y / px(1.))).max(0.0);
+    let ratio = (offset_px / max_px).clamp(0.0, 1.0);
+    let top_px = ratio * (track_px - thumb_px);
+
+    div()
+        .absolute()
+        .top(px(10.))
+        .right(px(6.))
+        .w(px(6.))
+        .h(px(track_px))
+        .rounded_full()
+        .bg(rgb(BORDER).opacity(0.7))
+        .child(
+            div()
+                .absolute()
+                .top(px(top_px))
+                .left(px(1.))
+                .w(px(4.))
+                .h(px(thumb_px))
+                .rounded_full()
+                .bg(rgb(MUTED).opacity(0.55)),
+        )
+}
+
+impl Dashboard {
     fn titlebar(&self, client_decorations: bool, cx: &mut Context<Self>) -> Stateful<Div> {
         let (status, tone) = self.status();
         let bar = div()
@@ -786,7 +1071,15 @@ impl Dashboard {
                             .text_color(rgb(AMBER))
                             .child("YUNMAI SCALE"),
                     )
-                    .child(div().text_xs().text_color(rgb(MUTED)).child("dashboard")),
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(MUTED))
+                            .child(match self.view {
+                                View::Dashboard => "dashboard",
+                                View::History => "history",
+                            }),
+                    ),
             )
             .child(
                 div()
@@ -961,6 +1254,103 @@ fn history_row(measurement: &Measurement) -> Div {
                 ))),
         )
         .children(measurement.historical.then(|| badge("historical", MUTED)))
+}
+
+/// Small text button shared by the history view controls.
+fn button(
+    id: &'static str,
+    label: impl Into<SharedString>,
+    cx: &mut Context<Dashboard>,
+    on_click: impl Fn(&mut Dashboard, &mut Context<Dashboard>) + 'static,
+) -> Stateful<Div> {
+    div()
+        .id(id)
+        .flex()
+        .items_center()
+        .justify_center()
+        .h(px(24.))
+        .px_2()
+        .rounded_md()
+        .text_xs()
+        .text_color(rgb(MUTED))
+        .cursor(CursorStyle::PointingHand)
+        .hover(|this| this.bg(rgb(BORDER)).text_color(rgb(TEXT)))
+        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .on_click(cx.listener(move |state, _, _, cx| on_click(state, cx)))
+        .child(label.into())
+}
+
+/// A row in the full history view. The dashboard card uses the compact
+/// `history_row` instead.
+fn history_detail_row(measurement: &Measurement) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .justify_between()
+        .gap_4()
+        .px_6()
+        .py_3()
+        .border_b_1()
+        .border_color(rgb(BORDER))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap_4()
+                .child(
+                    div()
+                        .w(px(96.))
+                        .text_base()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(format_weight(measurement.weight_kg)),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_sm()
+                                .child(format_timestamp(&measurement.scale_date)),
+                        )
+                        .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
+                            "user {} · {}",
+                            measurement.user_id, measurement.device_id
+                        ))),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap_4()
+                .text_xs()
+                .text_color(rgb(MUTED))
+                .child(format!("{}% fat", measurement.fat_percentage))
+                .child(format!("resistance {}", measurement.resistance))
+                .children(measurement.historical.then(|| badge("historical", MUTED))),
+        )
+}
+
+fn open_in_browser(url: &str) -> Result<(), String> {
+    let (program, prefix): (&str, &[&str]) = if cfg!(target_os = "macos") {
+        ("open", &[])
+    } else if cfg!(target_os = "windows") {
+        ("cmd", &["/C", "start", ""])
+    } else {
+        ("xdg-open", &[])
+    };
+
+    Command::new(program)
+        .args(prefix)
+        .arg(url)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("cannot open {url}: {error}"))
 }
 
 fn driver_label(name: &str) -> &'static str {
