@@ -175,15 +175,15 @@ bun install
 packaging/deb/build.sh          # or: bun run deb
 
 # desktop + service from the local files
-sudo apt install ./dist/deb/yunmai-noble_0.2.1_amd64.deb \
-                 ./dist/deb/yunmai-noble-desktop_0.2.1_amd64.deb \
-                 ./dist/deb/yunmai-noble-full_0.2.1_all.deb
+sudo apt install ./dist/deb/yunmai-noble_0.2.2_amd64.deb \
+                 ./dist/deb/yunmai-noble-desktop_0.2.2_amd64.deb \
+                 ./dist/deb/yunmai-noble-full_0.2.2_all.deb
 
 # headless host
-sudo apt install ./dist/deb/yunmai-noble_0.2.1_amd64.deb
+sudo apt install ./dist/deb/yunmai-noble_0.2.2_amd64.deb
 
 # optional parallel demo instance
-sudo apt install ./dist/deb/yunmai-noble-simulator_0.2.1_amd64.deb
+sudo apt install ./dist/deb/yunmai-noble-simulator_0.2.2_amd64.deb
 ```
 
 Users installing from the published repository do not build anything; see

@@ -123,7 +123,7 @@ dpkg -l 'yunmai-noble*'
 ```
 
 The repository keeps the current release and up to two previous ones, so
-`apt install yunmai-noble=0.2.1` works while that version is still in the
+`apt install yunmai-noble=0.2.2` works while that version is still in the
 pool. Older versions are on the GitHub Releases page; download the `.deb` files
 and install them together (see below) to go further back.
 
@@ -162,19 +162,19 @@ architecture from the [releases page](https://github.com/Vanuan/yunmai-noble/rel
 then install the metapackage and its two dependencies together:
 
 ```sh
-sudo apt install ./yunmai-noble_0.2.1_amd64.deb \
-                 ./yunmai-noble-desktop_0.2.1_amd64.deb \
-                 ./yunmai-noble-full_0.2.1_all.deb
+sudo apt install ./yunmai-noble_0.2.2_amd64.deb \
+                 ./yunmai-noble-desktop_0.2.2_amd64.deb \
+                 ./yunmai-noble-full_0.2.2_all.deb
 ```
 
-Replace `amd64` with `arm64` on ARM hosts and adjust `0.2.1` if you downloaded
+Replace `amd64` with `arm64` on ARM hosts and adjust `0.2.2` if you downloaded
 a different release. `apt` resolves system dependencies and installs the local
 files in one transaction; plain `dpkg -i` does not.
 
 Optional demo instance:
 
 ```sh
-sudo apt install ./yunmai-noble-simulator_0.2.1_amd64.deb
+sudo apt install ./yunmai-noble-simulator_0.2.2_amd64.deb
 ```
 
 Verify the downloads before installing:

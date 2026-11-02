@@ -1,3 +1,10 @@
+yunmai-noble (0.2.2) unstable; urgency=medium
+
+  * List retained package versions in the APT index with --multiversion,
+    so recent versions can be pinned or downgraded.
+
+ -- Vanuan <vanuan@gmail.com>  Mon, 02 Nov 2026 00:00:00 +0000
+
 yunmai-noble (0.2.1) unstable; urgency=medium
 
   * Add the yunmai-noble-archive-keyring bootstrap package.
@@ -5,7 +12,7 @@ yunmai-noble (0.2.1) unstable; urgency=medium
     generations.
   * Add CI for pushes and pull requests, including a lintian gate.
 
- -- Vanuan <vanuan@gmail.com>  Mon, 02 Nov 2026 00:00:00 +0000
+ -- Vanuan <vanuan@gmail.com>  Sun, 01 Nov 2026 00:00:00 +0000
 
 yunmai-noble (0.2.0) unstable; urgency=medium
 
@@ -14,10 +21,10 @@ yunmai-noble (0.2.0) unstable; urgency=medium
     dependencies.
   * Add a yunmai-noble-simulator launcher for the demo instance.
 
- -- Vanuan <vanuan@gmail.com>  Sun, 01 Nov 2026 00:00:00 +0000
+ -- Vanuan <vanuan@gmail.com>  Sat, 31 Oct 2026 00:00:00 +0000
 
 yunmai-noble (0.1.0) unstable; urgency=medium
 
   * Initial package: suite service, bundled Bun runtime, and web UI.
 
- -- Vanuan <vanuan@gmail.com>  Sat, 31 Oct 2026 00:00:00 +0000
+ -- Vanuan <vanuan@gmail.com>  Fri, 30 Oct 2026 00:00:00 +0000

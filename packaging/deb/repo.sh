@@ -134,7 +134,7 @@ for arch in "${arches[@]}"; do
   mkdir -p "$index"
   (
     cd "$OUT"
-    dpkg-scanpackages --arch "$arch" "pool/$COMPONENT" /dev/null 2>/dev/null
+    dpkg-scanpackages --multiversion --arch "$arch" "pool/$COMPONENT" /dev/null 2>/dev/null
   ) > "$index/Packages"
   gzip -9n -c "$index/Packages" > "$index/Packages.gz"
 done

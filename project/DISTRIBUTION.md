@@ -60,8 +60,8 @@ Setup once:
 Then:
 
 ```sh
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
 ## Repository layout
@@ -83,11 +83,12 @@ https://vanuan.github.io/yunmai-noble/apt/
 
 `repo.sh` derives the architecture list from the packages, includes
 `Architecture: all` packages in every index, and writes the `Release`
-checksums itself so it does not need `apt-utils`. `Release` advertises
-`Acquire-By-Hash: yes`; the script copies the current indices into `by-hash/`
-and, with `--seed-url`, downloads the live repository's previous indices so a
-client that fetched the old `Release` can still resolve them during a
-deployment.
+checksums itself so it does not need `apt-utils`. It scans with
+`dpkg-scanpackages --multiversion`, so every retained version stays in the
+index and can be pinned. `Release` advertises `Acquire-By-Hash: yes`; the
+script copies the current indices into `by-hash/` and, with `--seed-url`,
+downloads the live repository's previous indices so a client that fetched the
+old `Release` can still resolve them during a deployment.
 
 ## Install from the repository
 
