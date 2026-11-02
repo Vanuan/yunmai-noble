@@ -48,9 +48,12 @@ Use `--no-sign` to produce an unsigned source package for inspection. The
 signing key is taken from `--gpg-key`, `GPG_KEY_ID`, or the first secret key.
 
 The release workflow also builds this source package and attaches it to the
-GitHub release. The signing key must be registered with Launchpad; the release
-workflow signs with the repository key. For a passphrase-protected key, run the
-script where gpg-agent can unlock it.
+GitHub release as `yunmai-noble_<version>_ppa-source.tar`. GitHub replaces `~`
+in asset names with `.`, which would break the filenames referenced by the
+`.changes`, so the source files are bundled with their original names. Extract
+the tar and run `dput` on the `.changes` inside. The signing key must be
+registered with Launchpad; the release workflow signs with the repository key.
+For a passphrase-protected key, run the script where gpg-agent can unlock it.
 
 ## Upload
 

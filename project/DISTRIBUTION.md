@@ -69,8 +69,9 @@ git push origin v0.2.3
 `packaging/ppa/build-source.sh` repackages a tagged release into a Debian source
 package: `upstream/<package>/<arch>` holds the release trees, and
 `debian/rules` installs the one matching `DEB_HOST_ARCH`. The release workflow
-builds this source package and attaches it to the GitHub Release; upload it with
-`dput` after registering the signing key at Launchpad.
+builds this source package and attaches it to the GitHub Release as a tar with
+the original filenames; extract it and upload the `.changes` with `dput` after
+registering the signing key at Launchpad.
 
 This channel ships prebuilt binaries (Bun, GPUI, and node_modules). PPAs allow
 that; the Debian and Ubuntu archives do not. It supports the series you upload

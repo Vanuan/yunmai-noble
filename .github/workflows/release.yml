@@ -165,6 +165,15 @@ jobs:
           packaging/ppa/build-source.sh --in dist/release --out dist/ppa
           --series noble
 
+      - name: Bundle PPA source package
+        run: |
+          version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' package.json | head -n 1)
+          (cd dist/ppa && tar --create \
+            --file "yunmai-noble_${version}_ppa-source.tar" \
+            yunmai-noble_*.dsc yunmai-noble_*_source.changes \
+            yunmai-noble_*.orig.tar.xz yunmai-noble_*.debian.tar.xz \
+            yunmai-noble_*_source.buildinfo)
+
       - name: Stage Pages site
         run: |
           mkdir -p site
@@ -210,6 +219,4 @@ jobs:
       - name: Attach PPA source package
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          find dist/ppa -maxdepth 1 -type f -print0 |
-            xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" dist/ppa/*.tar --clobber
