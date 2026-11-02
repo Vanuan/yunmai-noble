@@ -91,6 +91,28 @@ test("returns the latest measurement", () => {
   }
 });
 
+test("records the model a driver reports", () => {
+  const store = new SqliteStore(":memory:");
+  try {
+    store.insert(input());
+    store.setDeviceModel("pi-scale-1", "YUNMAI-SIM", "2026-11-01T10:05:00.000Z");
+
+    const device = store.devices()[0];
+    assert.equal(device.model, "YUNMAI-SIM");
+    // A status message is not a weighing, so the sighting does not move.
+    assert.equal(device.lastSeenAt, "2026-11-01T10:00:01.000Z");
+    assert.equal(device.firmwareVersion, 1);
+
+    store.setDeviceModel("unknown-scale", "YUNMAI-MINI", "2026-11-01T10:06:00.000Z");
+    assert.equal(
+      store.devices().find((entry) => entry.id === "unknown-scale")?.model,
+      "YUNMAI-MINI"
+    );
+  } finally {
+    store.close();
+  }
+});
+
 test("clears every measurement but keeps devices", () => {
   const store = new SqliteStore(":memory:");
   try {

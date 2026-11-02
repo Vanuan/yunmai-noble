@@ -19,9 +19,21 @@ unit coordinates in `plot_points`, which is unit tested; the canvas callback
 only scales those points to the element bounds. Fewer than two readings hides
 the chart.
 
+## Latest reading
+
+The card shows the scale platform, then the reading's time, user, device, and
+firmware. When the driver has reported the advertised name, a **Model** field
+sits next to the device id, so a `scale-simulator` node is identifiable as, say,
+`YUNMAI-MINI`. Fat percentage and resistance only appear when the scale reports
+them; weight-only models send zeros, and showing `0` would imply a measurement
+that was never taken.
+
 ## History
 
-The dashboard card lists the five most recent readings. **View history**
+The dashboard card lists the five most recent readings. Consecutive readings
+with the same weight, user, and device within five minutes are folded into one
+row marked with the number of readings, so a repeating simulator or a scale that
+retransmits cannot flood the list. **View history**
 replaces the dashboard with the full list: 100 readings per page, requested as
 `GET /api/measurements?limit=100&before=<oldest scaleDate>`. Scrolling near the
 bottom, or pressing **Load more**, fetches the next page. Reopening the view

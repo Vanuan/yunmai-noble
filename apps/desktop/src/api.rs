@@ -17,6 +17,29 @@ pub struct Measurement {
     pub firmware_version: Option<i64>,
 }
 
+impl Measurement {
+    /// Body-composition scales report fat percentage and resistance; weight-only
+    /// models leave both at zero, so the dashboard hides those fields.
+    pub fn has_body_composition(&self) -> bool {
+        self.fat_percentage > 0 || self.resistance > 0
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Device {
+    pub id: String,
+    pub last_seen_at: String,
+    pub firmware_version: Option<i64>,
+    /// Advertised model name, once the driver has reported one.
+    pub model: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct DevicesResponse {
+    pub devices: Vec<Device>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct MeasurementsResponse {
     pub measurements: Vec<Measurement>,
@@ -134,8 +157,20 @@ pub struct Snapshot {
     pub health: Health,
     pub latest: Option<Measurement>,
     pub measurements: Vec<Measurement>,
+    pub devices: Vec<Device>,
     /// Present when the historian is hosted by the suite.
     pub suite: Option<SuiteState>,
+}
+
+impl Snapshot {
+    /// The advertised model behind a driver's device id, when the driver has
+    /// reported one.
+    pub fn device_model(&self, device_id: &str) -> Option<&str> {
+        self.devices
+            .iter()
+            .find(|device| device.id == device_id)
+            .and_then(|device| device.model.as_deref())
+    }
 }
 
 #[derive(Deserialize)]
@@ -174,6 +209,10 @@ impl HistorianClient {
         let health = self.get_health()?;
         let latest = self.get_optional::<Measurement>("/api/measurements/latest")?;
         let measurements = self.measurements(20, None)?;
+        let devices = self
+            .get_optional::<DevicesResponse>("/api/devices")?
+            .map(|response| response.devices)
+            .unwrap_or_default();
         // A standalone historian does not mount the suite control API.
         let suite = self.get_optional::<SuiteState>("/api/suite")?;
 
@@ -181,6 +220,7 @@ impl HistorianClient {
             health,
             latest,
             measurements: measurements.measurements,
+            devices,
             suite,
         })
     }
@@ -589,6 +629,45 @@ mod tests {
         let client = HistorianClient::new(format!("http://{address}"));
         assert!(client.settings().unwrap().is_none());
         server.join().unwrap();
+    }
+
+    #[test]
+    fn detects_body_composition_scales() {
+        let weight_only: Measurement = serde_json::from_str(
+            r#"{
+                "id": 1, "deviceId": "scale-simulator", "scaleDate": "2026-11-01T10:00:00.000Z",
+                "receivedAt": "2026-11-01T10:00:01.000Z", "userId": 1, "weightKg": 72.4,
+                "resistance": 0, "fatPercentage": 0, "historical": false, "firmwareVersion": 1
+            }"#,
+        )
+        .unwrap();
+        assert!(!weight_only.has_body_composition());
+
+        let mut scaled = weight_only.clone();
+        scaled.fat_percentage = 18;
+        assert!(scaled.has_body_composition());
+    }
+
+    #[test]
+    fn finds_the_model_behind_a_device_id() {
+        let snapshot = Snapshot {
+            health: serde_json::from_str(
+                r#"{"status":"ok","database":{"ok":true},"upstream":{"configured":false,"connected":false,"lastMessageAt":null,"lastError":null}}"#,
+            )
+            .unwrap(),
+            latest: None,
+            measurements: Vec::new(),
+            devices: vec![Device {
+                id: "scale-simulator".to_string(),
+                last_seen_at: "2026-11-01T10:00:01.000Z".to_string(),
+                firmware_version: Some(1),
+                model: Some("YUNMAI-SIM".to_string()),
+            }],
+            suite: None,
+        };
+
+        assert_eq!(snapshot.device_model("scale-simulator"), Some("YUNMAI-SIM"));
+        assert_eq!(snapshot.device_model("other"), None);
     }
 
     #[test]

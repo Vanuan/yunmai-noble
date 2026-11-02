@@ -31,6 +31,8 @@ export interface DeviceRow {
   id: string;
   lastSeenAt: string;
   firmwareVersion: number | null;
+  /** Advertised model name, e.g. YUNMAI-SIM; known once the driver connects. */
+  model: string | null;
 }
 
 export interface MeasurementFilter {
@@ -46,6 +48,8 @@ export interface MeasurementStore {
   list(filter: MeasurementFilter): MeasurementRow[];
   latest(userId?: number): MeasurementRow | null;
   devices(): DeviceRow[];
+  /** Record the model a driver reports for its scale. */
+  setDeviceModel(deviceId: string, model: string, seenAt: string): void;
   /** Delete every measurement and return how many rows were removed. */
   clear(): number;
   ping(): boolean;
@@ -69,6 +73,7 @@ interface DbDeviceRow {
   id: string;
   last_seen_at: string;
   firmware_version: number | null;
+  model: string | null;
 }
 
 const SCHEMA = `
@@ -78,7 +83,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   last_seen_at TEXT NOT NULL,
-  firmware_version INTEGER
+  firmware_version INTEGER,
+  model TEXT
 );
 
 CREATE TABLE IF NOT EXISTS measurements (
@@ -109,6 +115,17 @@ function epochSeconds(iso: string): number {
   return Math.floor(milliseconds / 1000);
 }
 
+// Databases created before the model column existed still open, so the extra
+// column is added in place instead of requiring a fresh database.
+function migrate(db: Database): void {
+  const columns = db.prepare("PRAGMA table_info(devices)").all() as Array<{
+    name: string;
+  }>;
+  if (!columns.some((column) => column.name === "model")) {
+    db.exec("ALTER TABLE devices ADD COLUMN model TEXT");
+  }
+}
+
 function toMeasurementRow(row: DbMeasurementRow): MeasurementRow {
   return {
     id: row.id,
@@ -133,6 +150,7 @@ export class SqliteStore implements MeasurementStore {
     }
     this.db = new Database(path);
     this.db.exec(SCHEMA);
+    migrate(this.db);
   }
 
   insert(input: MeasurementInput): boolean {
@@ -225,7 +243,7 @@ export class SqliteStore implements MeasurementStore {
   devices(): DeviceRow[] {
     const rows = this.db
       .prepare(
-        `SELECT id, last_seen_at, firmware_version
+        `SELECT id, last_seen_at, firmware_version, model
          FROM devices
          ORDER BY last_seen_at DESC`
       )
@@ -235,7 +253,20 @@ export class SqliteStore implements MeasurementStore {
       id: row.id,
       lastSeenAt: row.last_seen_at,
       firmwareVersion: row.firmware_version,
+      model: row.model,
     }));
+  }
+
+  setDeviceModel(deviceId: string, model: string, seenAt: string): void {
+    // Keep the last sighting and firmware of an existing device: a status
+    // message is not a weighing.
+    this.db
+      .prepare(
+        `INSERT INTO devices (id, last_seen_at, firmware_version, model)
+         VALUES (?, ?, NULL, ?)
+         ON CONFLICT (id) DO UPDATE SET model = excluded.model`
+      )
+      .run(deviceId, seenAt, model);
   }
 
   clear(): number {

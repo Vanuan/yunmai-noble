@@ -42,6 +42,7 @@ export const DeviceDtoSchema = z.object({
   id: z.string(),
   lastSeenAt: z.iso.datetime(),
   firmwareVersion: z.number().int().nullable(),
+  model: z.string().nullable(),
 });
 
 export const DevicesResponseSchema = z.object({

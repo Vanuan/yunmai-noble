@@ -145,6 +145,7 @@ test("returns measurements with filters and a cursor", async () => {
           id: "pi-scale-1",
           lastSeenAt: "2026-11-01T11:00:01.000Z",
           firmwareVersion: 1,
+          model: null,
         },
       ],
     });

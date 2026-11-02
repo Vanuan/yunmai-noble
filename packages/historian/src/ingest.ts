@@ -232,6 +232,20 @@ export class IngestClient {
     this.lastMessageAt = this.now().toISOString();
     this.sse.broadcast(message);
 
+    if (message.type === "status") {
+      // The driver reports the advertised scale name; it is the only model
+      // identifier a weight-only scale sends over the wire.
+      const model = message.payload.peripheralName;
+      if (model) {
+        try {
+          this.store.setDeviceModel(message.deviceId, model, this.now().toISOString());
+        } catch (error) {
+          this.recordError(error);
+        }
+      }
+      return;
+    }
+
     if (message.type !== "measurement.completed") return;
 
     try {

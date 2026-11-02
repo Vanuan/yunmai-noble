@@ -236,6 +236,7 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
         id: device.id,
         lastSeenAt: device.lastSeenAt,
         firmwareVersion: device.firmwareVersion,
+        model: device.model,
       }));
       return jsonResponse({ devices }, 200, corsOrigin);
     }

@@ -128,6 +128,20 @@ test("ingests v1 and legacy v0 measurements", async () => {
       })
     );
     socket.send(JSON.stringify({ invalid: true }));
+    socket.send(
+      JSON.stringify({
+        v: 1,
+        type: "status",
+        deviceId: "v1-device",
+        sentAt: "2026-11-01T10:00:01.000Z",
+        payload: {
+          bluetooth: "poweredOn",
+          scanning: false,
+          connected: true,
+          peripheralName: "YUNMAI-SIM",
+        },
+      })
+    );
   });
 
   const ingest = new IngestClient({
@@ -162,9 +176,13 @@ test("ingests v1 and legacy v0 measurements", async () => {
       Math.floor(Date.parse("2026-11-01T09:00:00.000Z") / 1000)
     );
 
-    assert.equal(messages.length, 2);
+    assert.equal(messages.length, 3);
     assert.equal(ingest.status().connected, true);
     assert.equal(ingest.status().lastMessageAt, NOW.toISOString());
+    assert.equal(
+      store.devices().find((device) => device.id === "v1-device")?.model,
+      "YUNMAI-SIM"
+    );
   } finally {
     ingest.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

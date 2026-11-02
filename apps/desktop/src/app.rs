@@ -10,12 +10,15 @@ use gpui::{
 
 use crate::api::{DriverStatus, HistorianClient, Measurement, SuiteSettings, SuiteState};
 use crate::format::{format_age, format_timestamp, format_weight};
+use crate::history::{HistoryGroup, group_consecutive};
 
 const BG: u32 = 0xfafaf9;
 const CARD: u32 = 0xffffff;
 const BORDER: u32 = 0xe7e5e4;
 const TEXT: u32 = 0x1c1917;
-const MUTED: u32 = 0x78716c;
+// Secondary text. Stone-600 sits at roughly 7:1 on the card background, which
+// keeps 12 px metadata readable.
+const MUTED: u32 = 0x57534e;
 const AMBER: u32 = 0xd97706;
 const GREEN: u32 = 0x10b981;
 const RED: u32 = 0xe11d48;
@@ -590,6 +593,31 @@ impl Dashboard {
             ));
         }
 
+        for device in self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.devices.as_slice())
+            .unwrap_or(&[])
+        {
+            let detail = match device.model.as_deref() {
+                Some(model) => format!(
+                    "{model} · {} · last seen {}",
+                    device.id,
+                    format_timestamp(&device.last_seen_at)
+                ),
+                None => format!(
+                    "{} · last seen {}",
+                    device.id,
+                    format_timestamp(&device.last_seen_at)
+                ),
+            };
+            let firmware = device
+                .firmware_version
+                .map(|version| format!("fw {version}"))
+                .unwrap_or_else(|| "fw -".to_string());
+            rows.push(status_row("scale", detail, firmware, MUTED));
+        }
+
         div().flex().flex_col().children(rows)
     }
 
@@ -746,63 +774,77 @@ impl Dashboard {
             320.,
         );
 
-        let details = match latest {
-            Some(measurement) => div()
-                .flex_1()
-                .flex()
-                .flex_col()
-                .justify_center()
-                .gap_4()
-                .child(
+        let details =
+            match latest {
+                Some(measurement) => {
+                    let model = self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.device_model(&measurement.device_id));
+                    let body_composition = measurement.has_body_composition();
+
                     div()
-                        .text_sm()
-                        .text_color(rgb(MUTED))
-                        .child("Latest reading"),
-                )
-                .child(
-                    div()
+                        .flex_1()
                         .flex()
-                        .flex_wrap()
-                        .gap_6()
-                        .child(metric(
-                            "Measured",
-                            format_timestamp(&measurement.scale_date),
-                        ))
-                        .child(metric("User", measurement.user_id.to_string()))
-                        .child(metric("Device", measurement.device_id.clone()))
-                        .child(metric("Resistance", measurement.resistance.to_string()))
-                        .child(metric("Fat %", measurement.fat_percentage.to_string()))
-                        .child(metric(
-                            "Firmware",
-                            measurement
-                                .firmware_version
-                                .map(|version| version.to_string())
-                                .unwrap_or_else(|| "—".to_string()),
-                        )),
-                ),
-            None => div()
-                .flex_1()
-                .flex()
-                .flex_col()
-                .justify_center()
-                .gap_2()
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(rgb(MUTED))
-                        .child("Latest reading"),
-                )
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(rgb(MUTED))
-                        .child(if self.loading {
-                            "Connecting to the historian..."
-                        } else {
-                            "No measurements yet."
-                        }),
-                ),
-        };
+                        .flex_col()
+                        .justify_center()
+                        .gap_4()
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(rgb(MUTED))
+                                .child("Latest reading"),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_wrap()
+                                .gap_6()
+                                .child(metric(
+                                    "Measured",
+                                    format_timestamp(&measurement.scale_date),
+                                ))
+                                .child(metric("User", measurement.user_id.to_string()))
+                                .children(model.map(|model| metric("Model", model.to_string())))
+                                .child(metric("Device", measurement.device_id.clone()))
+                                .children(body_composition.then(|| {
+                                    metric("Fat %", measurement.fat_percentage.to_string())
+                                }))
+                                .children(body_composition.then(|| {
+                                    metric("Resistance", measurement.resistance.to_string())
+                                }))
+                                .child(metric(
+                                    "Firmware",
+                                    measurement
+                                        .firmware_version
+                                        .map(|version| version.to_string())
+                                        .unwrap_or_else(|| "—".to_string()),
+                                )),
+                        )
+                }
+                None => div()
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .justify_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(rgb(MUTED))
+                            .child("Latest reading"),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(rgb(MUTED))
+                            .child(if self.loading {
+                                "Connecting to the historian..."
+                            } else {
+                                "No measurements yet."
+                            }),
+                    ),
+            };
 
         div()
             .rounded_2xl()
@@ -1005,13 +1047,11 @@ impl Dashboard {
             .as_ref()
             .map(|snapshot| snapshot.measurements.as_slice())
             .unwrap_or(&[]);
-        let rows: Vec<Div> = measurements
-            .iter()
-            .take(RECENT_ROWS)
-            .map(history_row)
-            .collect();
-        let count_label = if measurements.len() > rows.len() {
-            format!("{} of {}", rows.len(), measurements.len())
+        let groups = group_consecutive(measurements);
+        let shown: Vec<&HistoryGroup> = groups.iter().take(RECENT_ROWS).collect();
+        let rows: Vec<Div> = shown.iter().map(|group| history_row(group)).collect();
+        let count_label = if groups.len() > shown.len() {
+            format!("{} of {}", shown.len(), groups.len())
         } else {
             format!("{} readings", measurements.len())
         };
@@ -1166,7 +1206,10 @@ impl Dashboard {
     }
 
     fn history_body(&mut self, cx: &mut Context<Self>) -> Div {
-        let rows: Vec<Div> = self.history.items.iter().map(history_detail_row).collect();
+        let rows: Vec<Div> = group_consecutive(&self.history.items)
+            .iter()
+            .map(history_detail_row)
+            .collect();
         let loaded = self.history.items.len();
         let more = self.history.next.is_some();
 
@@ -1535,7 +1578,23 @@ fn metric(label: &'static str, value: String) -> Div {
         .child(div().text_sm().font_weight(FontWeight::MEDIUM).child(value))
 }
 
-fn history_row(measurement: &Measurement) -> Div {
+fn history_row(group: &HistoryGroup) -> Div {
+    let measurement = group.newest;
+    let detail = match group.repeat_label() {
+        Some(repeat) => format!(
+            "{} · {repeat} · user {} · {}",
+            format_timestamp(&measurement.scale_date),
+            measurement.user_id,
+            measurement.device_id
+        ),
+        None => format!(
+            "{} · user {} · {}",
+            format_timestamp(&measurement.scale_date),
+            measurement.user_id,
+            measurement.device_id
+        ),
+    };
+
     div()
         .flex()
         .items_center()
@@ -1555,12 +1614,7 @@ fn history_row(measurement: &Measurement) -> Div {
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(format_weight(measurement.weight_kg)),
                 )
-                .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
-                    "{} · user {} · {}",
-                    format_timestamp(&measurement.scale_date),
-                    measurement.user_id,
-                    measurement.device_id
-                ))),
+                .child(div().text_xs().text_color(rgb(MUTED)).child(detail)),
         )
         .children(measurement.historical.then(|| badge("historical", MUTED)))
 }
@@ -1591,7 +1645,17 @@ fn button(
 
 /// A row in the full history view. The dashboard card uses the compact
 /// `history_row` instead.
-fn history_detail_row(measurement: &Measurement) -> Div {
+fn history_detail_row(group: &HistoryGroup) -> Div {
+    let measurement = group.newest;
+    let occurred = match group.repeat_label() {
+        Some(repeat) => format!(
+            "{} · {repeat} since {}",
+            format_timestamp(&measurement.scale_date),
+            format_timestamp(&group.oldest.scale_date)
+        ),
+        None => format_timestamp(&measurement.scale_date),
+    };
+
     div()
         .flex()
         .items_center()
@@ -1618,11 +1682,7 @@ fn history_detail_row(measurement: &Measurement) -> Div {
                         .flex()
                         .flex_col()
                         .gap_1()
-                        .child(
-                            div()
-                                .text_sm()
-                                .child(format_timestamp(&measurement.scale_date)),
-                        )
+                        .child(div().text_sm().child(occurred))
                         .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
                             "user {} · {}",
                             measurement.user_id, measurement.device_id
@@ -1634,10 +1694,16 @@ fn history_detail_row(measurement: &Measurement) -> Div {
                 .flex()
                 .items_center()
                 .gap_4()
-                .text_xs()
-                .text_color(rgb(MUTED))
-                .child(format!("{}% fat", measurement.fat_percentage))
-                .child(format!("resistance {}", measurement.resistance))
+                .children(measurement.has_body_composition().then(|| {
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_4()
+                        .text_xs()
+                        .text_color(rgb(MUTED))
+                        .child(format!("{}% fat", measurement.fat_percentage))
+                        .child(format!("resistance {}", measurement.resistance))
+                }))
                 .children(measurement.historical.then(|| badge("historical", MUTED))),
         )
 }

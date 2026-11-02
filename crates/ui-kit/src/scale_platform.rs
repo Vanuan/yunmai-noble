@@ -2,12 +2,10 @@ use gpui::{Div, FontWeight, div, prelude::*, px, rgb};
 
 const PLATFORM: u32 = 0xf5f5f4;
 const PLATFORM_EDGE: u32 = 0xd6d3d1;
-const ELECTRODE: u32 = 0xded9d6;
-const ELECTRODE_EDGE: u32 = 0xcfc9c4;
-const DISPLAY: u32 = 0x78716c;
-const DISC: u32 = 0xd6d3d1;
-const DISC_EDGE: u32 = 0xa8a29e;
-const BRAND: u32 = 0xa8a29e;
+const ELECTRODE: u32 = 0xe7e5e4;
+const ELECTRODE_EDGE: u32 = 0xd6d3d1;
+const DISPLAY: u32 = 0x44403c;
+const BRAND: u32 = 0x78716c;
 const RUNNING: u32 = 0x10b981;
 const KG_TO_LB: f64 = 2.204_622_621_848_776;
 
@@ -108,17 +106,6 @@ pub fn scale_platform(
         )
         .child(electrode(66., 252., false, scale))
         .child(electrode(66., 252., true, scale))
-        .child(
-            div()
-                .absolute()
-                .top(px(173. * scale))
-                .left(px(173. * scale))
-                .size(px(54. * scale))
-                .rounded_full()
-                .border_1()
-                .border_color(rgb(DISC_EDGE))
-                .bg(rgb(DISC)),
-        )
         .child(
             div()
                 .absolute()

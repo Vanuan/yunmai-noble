@@ -2,6 +2,7 @@ mod api;
 mod app;
 mod chart;
 mod format;
+mod history;
 mod launcher;
 
 use gpui::{
