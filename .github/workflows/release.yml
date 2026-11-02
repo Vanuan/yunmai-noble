@@ -222,3 +222,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/ppa/*.tar --clobber
+
+  ppa:
+    needs: publish
+    uses: ./.github/workflows/ppa.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit

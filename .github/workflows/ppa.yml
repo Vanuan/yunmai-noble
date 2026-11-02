@@ -1,0 +1,109 @@
+name: ppa
+
+# Upload a release's Launchpad source packages to the PPA. The release workflow
+# calls this after publishing the GitHub release; dispatching it by hand
+# uploads a tag that was published before this automation existed.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag whose source package is uploaded
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose source package is uploaded
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppa-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-24.04
+    # Uploads are permanent and a rejected version cannot be reused, so this job
+    # waits for a reviewer. Remove the required reviewers on the `launchpad`
+    # environment to let tags publish without approval.
+    environment:
+      name: launchpad
+      url: https://launchpad.net/~vanuan/+archive/ubuntu/yunmai-noble
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Import signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "add the GPG_PRIVATE_KEY repository secret" >&2
+            exit 1
+          fi
+          install -d -m 700 "$HOME/.gnupg"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Download the PPA source package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p dist/ppa
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'yunmai-noble_*_ppa-source.tar' --dir dist/ppa
+          tar -xf dist/ppa/yunmai-noble_*_ppa-source.tar --directory dist/ppa
+
+      - name: Verify the signatures
+        run: |
+          for file in dist/ppa/*.dsc dist/ppa/*_source.changes; do
+            gpg --batch --verify "$file"
+          done
+
+      - name: Build what Launchpad will build
+        run: |
+          docker run --rm --volume "$PWD/dist/ppa:/src" --workdir /src \
+            ubuntu:24.04 bash -o pipefail -eu -c '
+              apt-get update -qq
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+                dpkg-dev debhelper fakeroot >/dev/null
+              for dsc in *.dsc; do
+                rm -rf /tmp/build
+                dpkg-source -x "$dsc" /tmp/build
+                cd /tmp/build
+                dpkg-buildpackage -b -us -uc -d >/dev/null
+                cd /src
+                rm -rf /tmp/build
+              done
+            '
+
+      - name: Upload to Launchpad
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dput
+          cat > "$HOME/.dput.cf" <<'EOF'
+          [yunmai-noble]
+          fqdn = ppa.launchpad.net
+          method = ftp
+          incoming = ~vanuan/ubuntu/yunmai-noble/
+          login = anonymous
+          EOF
+          for changes in dist/ppa/*_source.changes; do
+            if dput yunmai-noble "$changes"; then
+              echo "uploaded $changes"
+              continue
+            fi
+            case "$changes" in
+              *~noble1*)
+                echo "error: upload of $changes failed" >&2
+                exit 1
+                ;;
+              *)
+                echo "warning: upload of $changes failed;" >&2
+                echo "enable the series on the PPA and re-run this job" >&2
+                ;;
+            esac
+          done

@@ -91,12 +91,30 @@ Enable `arm64` in the PPA settings to get the Raspberry Pi builds. Launchpad
 builds one package set per enabled architecture; the source package already
 contains both trees.
 
+## Automation
+
+`.github/workflows/ppa.yml` uploads a release: the release workflow calls it
+after publishing the GitHub release, and dispatching it by hand uploads an
+older tag. The job runs in the `launchpad` environment, which requires a
+reviewer, so a tag does not reach the PPA without approval.
+
+Before uploading it verifies every `.dsc` and `.changes` signature, then builds
+both source packages in an `ubuntu:24.04` container the way Launchpad will, so
+a broken `debian/rules` fails the release instead of the PPA build. Uploads are
+permanent and a version cannot be reused, so a failed upload needs a version
+bump. `noble` must succeed; a failed `resolute` upload only warns, because the
+series may not be enabled on the PPA yet.
+
 ## Series
+
+A series is an Ubuntu release. The PPA publishes one archive per series, so
+users on 24.04 get the `noble` build and users on 26.04 get the `resolute` build
+of the same version.
 
 The Debian version carries the series, `-0ubuntu1~noble1` or
 `-0ubuntu1~resolute1`, and the same upstream tarball is used for all of them.
-The release workflow builds `noble` and `resolute`; upload a series only after
-enabling it on the PPA, and Launchpad creates a new series on the first upload.
+The release workflow builds `noble` and `resolute`; Launchpad creates the PPA
+series on the first upload, as long as the Ubuntu series exists there.
 
 ## Users
 
