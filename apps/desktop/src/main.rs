@@ -1,5 +1,6 @@
 mod api;
 mod app;
+mod chart;
 mod format;
 mod launcher;
 

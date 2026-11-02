@@ -4,15 +4,24 @@ Native Rust desktop client for the historian API, built with
 [`gpui-unofficial`](https://crates.io/crates/gpui-unofficial) (the published
 build of Zed's GPUI).
 
-It polls the historian every two seconds and shows the latest measurement,
-service/upstream status, and recent history. **View history** opens a paginated
-list of every stored reading and **Open historian** launches the web dashboard.
-A Settings dialog opened from the titlebar selects the active suite driver. Live
-SSE streaming and simulator controls are next.
+It polls the historian every two seconds and shows the latest measurement, a
+weight trend chart, service/upstream status, and the five most recent readings.
+**View history** opens a paginated list of every stored reading and **Open
+historian** launches the web dashboard. A Settings dialog opened from the
+titlebar selects the active suite driver. Live SSE streaming and simulator
+controls are next.
+
+## Trend chart
+
+The dashboard plots the readings the poll returns (20) as a line chart with a
+filled area, grid lines, and a dot per reading. `src/chart.rs` maps weights onto
+unit coordinates in `plot_points`, which is unit tested; the canvas callback
+only scales those points to the element bounds. Fewer than two readings hides
+the chart.
 
 ## History
 
-The dashboard card shows the twelve most recent readings. **View history**
+The dashboard card lists the five most recent readings. **View history**
 replaces the dashboard with the full list: 100 readings per page, requested as
 `GET /api/measurements?limit=100&before=<oldest scaleDate>`. Scrolling near the
 bottom, or pressing **Load more**, fetches the next page. Reopening the view
@@ -109,6 +118,7 @@ YUNMAI_HISTORIAN_URL=http://pi.local:3000 cargo run -p yunmai-noble-desktop
 
 - `src/main.rs` — window, args, key bindings, preflight call
 - `src/app.rs` — dashboard and history views, custom titlebar, polling loop
+- `src/chart.rs` — weight trend chart geometry and canvas painting
 - `src/api.rs` — historian HTTP client and serde models
 - `src/format.rs` — weight/date formatting
 - `src/launcher.rs` — health probe and service autostart
@@ -122,5 +132,5 @@ on. It talks only to the historian; it never opens BLE or SQLite.
 ## Next
 
 - SSE live readings instead of polling
-- Trend chart
+- Trend ranges (week, month, all) on the chart
 - Simulator controls (the suite's `/api/suite/simulator`)

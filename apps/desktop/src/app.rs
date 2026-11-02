@@ -30,6 +30,9 @@ const DRIVERS: [(&str, &str, &str); 3] = [
 /// Measurements requested per history page; the API caps this at 500.
 const HISTORY_PAGE: usize = 100;
 
+/// Rows in the dashboard history card; the full list is one click away.
+const RECENT_ROWS: usize = 5;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum View {
     Dashboard,
@@ -705,13 +708,72 @@ impl Dashboard {
         cx.notify();
     }
 
+    /// Weight trend over the readings the dashboard already polls for.
+    fn trend_card(&self) -> Option<Div> {
+        let measurements = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.measurements.as_slice())
+            .unwrap_or(&[]);
+        let chart = crate::chart::weight_trend(measurements, AMBER, BORDER, 180.)?;
+        let oldest = measurements.last()?;
+        let newest = measurements.first()?;
+        let min = measurements
+            .iter()
+            .map(|measurement| measurement.weight_kg)
+            .fold(f64::INFINITY, f64::min);
+        let max = measurements
+            .iter()
+            .map(|measurement| measurement.weight_kg)
+            .fold(f64::NEG_INFINITY, f64::max);
+
+        Some(
+            div()
+                .rounded_2xl()
+                .border_1()
+                .border_color(rgb(BORDER))
+                .bg(rgb(CARD))
+                .shadow_sm()
+                .p_6()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(div().text_sm().text_color(rgb(MUTED)).child("Weight trend"))
+                        .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
+                            "{} – {}",
+                            format_weight(min),
+                            format_weight(max)
+                        ))),
+                )
+                .child(chart)
+                .child(
+                    div()
+                        .flex()
+                        .justify_between()
+                        .text_xs()
+                        .text_color(rgb(MUTED))
+                        .child(format_timestamp(&oldest.scale_date))
+                        .child(format_timestamp(&newest.scale_date)),
+                ),
+        )
+    }
+
     fn history_card(&self, cx: &mut Context<Self>) -> Div {
         let measurements = self
             .snapshot
             .as_ref()
             .map(|snapshot| snapshot.measurements.as_slice())
             .unwrap_or(&[]);
-        let rows: Vec<Div> = measurements.iter().take(12).map(history_row).collect();
+        let rows: Vec<Div> = measurements
+            .iter()
+            .take(RECENT_ROWS)
+            .map(history_row)
+            .collect();
         let count_label = if measurements.len() > rows.len() {
             format!("{} of {}", rows.len(), measurements.len())
         } else {
@@ -859,6 +921,7 @@ impl Dashboard {
                                     .map(error_banner),
                             )
                             .child(self.latest_card())
+                            .children(self.trend_card())
                             .child(self.history_card(cx))
                             .child(self.footer()),
                     ),
