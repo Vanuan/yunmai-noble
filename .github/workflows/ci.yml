@@ -67,7 +67,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            binutils cmake clang libclang-dev unzip xz-utils lintian gnupg \
+            binutils cmake clang libclang-dev unzip xz-utils lintian gnupg dpkg-dev \
             libxkbcommon-dev libxkbcommon-x11-dev \
             libxcb1-dev libxcb-xkb-dev libxcb-render0-dev libxcb-shape0-dev \
             libxcb-xfixes0-dev libxau-dev libxdmcp-dev libx11-xcb-dev \
@@ -100,3 +100,8 @@ jobs:
 
       - name: Lint packages
         run: lintian --fail-on error dist/deb/*.deb
+
+      - name: Build PPA source package
+        run: |
+          packaging/ppa/build-source.sh --in dist/deb --out dist/ppa \
+            --series noble --no-sign

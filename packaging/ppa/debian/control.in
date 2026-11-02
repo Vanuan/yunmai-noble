@@ -1,0 +1,56 @@
+Source: yunmai-noble
+Section: utils
+Priority: optional
+Maintainer: Vanuan <vanuan@gmail.com>
+Homepage: https://github.com/Vanuan/yunmai-noble
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Build-Depends: debhelper-compat (= 13)
+
+Package: yunmai-noble
+Architecture: @ARCHS@
+Depends: ${misc:Depends}, adduser, ca-certificates, dbus, libc6 (>= 2.35)
+Recommends: bluez
+Suggests: nodejs (>= 22)
+Description: Bluetooth scale service and web dashboard
+ Yunmai Noble reads Yunmai Bluetooth scales through BlueZ over D-Bus,
+ stores measurements in SQLite, and serves a web dashboard and JSON/SSE
+ API from a single process.
+ .
+ This package installs the systemd service, the bundled Bun runtime, the
+ web assets, and the yunmai-noble command. The service runs as the
+ unprivileged yunmai user and keeps its database in /var/lib/yunmai-noble.
+
+Package: yunmai-noble-desktop
+Architecture: @ARCHS@
+Depends: ${misc:Depends}, fontconfig, libc6 (>= 2.35), libfreetype6, libgcc-s1, libxau6, libxcb-xkb1, libxcb1, libxdmcp6, libxkbcommon-x11-0, libxkbcommon0
+Recommends: fonts-dejavu-core, libgl1 | libvulkan1, yunmai-noble (= ${binary:Version})
+Suggests: yunmai-noble-simulator
+Description: GPUI dashboard and simulator control for Yunmai Noble
+ The yunmai-noble-desktop application shows the latest measurement, the
+ live scale state, and the measurement history, and it selects which
+ suite driver is active through the Settings dialog. It also ships
+ yunmai-noble-simulator-ui, the standalone virtual-scale control app.
+ .
+ The client talks to the suite API over HTTP, so it can point at a
+ remote historian with --historian or YUNMAI_HISTORIAN_URL.
+
+Package: yunmai-noble-full
+Architecture: all
+Depends: ${misc:Depends}, yunmai-noble (= ${binary:Version}), yunmai-noble-desktop (= ${binary:Version})
+Suggests: yunmai-noble-simulator (= ${binary:Version})
+Section: metapackages
+Description: Yunmai Noble service and desktop client
+ Metapackage that installs the complete Yunmai Noble application: the
+ Bluetooth scale service with its web dashboard, and the GPUI desktop
+ client with the simulator control app.
+
+Package: yunmai-noble-simulator
+Architecture: @ARCHS@
+Depends: ${misc:Depends}, adduser, yunmai-noble (= ${binary:Version})
+Recommends: yunmai-noble-desktop (= ${binary:Version})
+Description: Virtual Yunmai scale for demos and testing
+ Runs the yunmai-noble suite with its built-in simulator driver as a
+ separate systemd service. The virtual scale listens on loopback port
+ 3100 and stores data in /var/lib/yunmai-noble-simulator, so it can run
+ alongside the real Bluetooth service.

@@ -39,9 +39,9 @@ is not implemented.
 3. Runs `bun test packages`, `bun run typecheck`, and `cargo test --workspace`
    on `amd64`.
 4. Builds the four application `.deb` files and uploads them as artifacts.
-5. Imports the signing key, builds `yunmai-noble-archive-keyring.deb`, builds
-   the repository with `packaging/deb/repo.sh --seed-url ...`, deploys the site
-   to GitHub Pages, and publishes the `.deb` files and checksums as a GitHub
+5. Imports the signing key, builds the keyring package and the APT repository,
+   builds the PPA source package, deploys the site to GitHub Pages, and
+   publishes the `.deb` files, checksums, and PPA source package as a GitHub
    Release.
 
 CI runs separately in `.github/workflows/ci.yml` on every push to `master` and
@@ -63,6 +63,22 @@ Then:
 git tag v0.2.2
 git push origin v0.2.2
 ```
+
+## Launchpad PPA
+
+`packaging/ppa/build-source.sh` repackages a tagged release into a Debian source
+package: `upstream/<package>/<arch>` holds the release trees, and
+`debian/rules` installs the one matching `DEB_HOST_ARCH`. The release workflow
+builds this source package and attaches it to the GitHub Release; upload it with
+`dput` after registering the signing key at Launchpad.
+
+This channel ships prebuilt binaries (Bun, GPUI, and node_modules). PPAs allow
+that; the Debian and Ubuntu archives do not. It supports the series you upload
+for (`noble`, `resolute`) and both architectures. See
+[packaging/ppa/README.md](../packaging/ppa/README.md).
+
+Do not enable the Pages repository and the PPA at the same time: they publish
+the same package names.
 
 ## Repository layout
 

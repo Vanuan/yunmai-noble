@@ -202,7 +202,9 @@ Tagged releases publish a signed APT repository at
 `https://vanuan.github.io/yunmai-noble/apt` (suite `stable`) and `.deb` files
 on GitHub Releases; see [project/DISTRIBUTION.md](project/DISTRIBUTION.md).
 The repository also publishes `yunmai-noble-archive-keyring`, a bootstrap
-package that installs the signing key and apt source.
+package that installs the signing key and apt source. Each release also
+attaches a Launchpad source package built from the same artifacts; see
+[packaging/ppa/README.md](packaging/ppa/README.md).
 
 ## BLE drivers
 

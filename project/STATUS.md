@@ -77,6 +77,10 @@ that installs the service and the client together. See
   generation seeded from the live site. `.github/workflows/ci.yml` runs Bun and
   Rust tests plus a `lintian --fail-on error` package build on pushes and pull
   requests. See [DISTRIBUTION.md](DISTRIBUTION.md).
+- Launchpad PPA packaging: `packaging/ppa/build-source.sh` repackages the
+  release artifacts into a source package for a series, and the release
+  workflow attaches it. It ships prebuilt Bun and GPUI binaries, so it is
+  PPA-only. See [packaging/ppa/README.md](../packaging/ppa/README.md).
 - 152 Bun tests, 19 Rust tests, and `tsc --noEmit`.
 - `run.sh` builds the default D-Bus image, or the legacy noble image with
   `./run.sh noble`.

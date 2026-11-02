@@ -1,0 +1,35 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+override_dh_auto_build:
+override_dh_auto_test:
+
+override_dh_auto_install:
+	for pkg in yunmai-noble yunmai-noble-desktop yunmai-noble-simulator; do \
+		mkdir -p debian/$$pkg; \
+		cp -a upstream/$$pkg/$(DEB_HOST_ARCH)/. debian/$$pkg/; \
+	done
+	mkdir -p debian/yunmai-noble-full
+	cp -a upstream/yunmai-noble-full/all/. debian/yunmai-noble-full/
+	for pkg in yunmai-noble yunmai-noble-desktop yunmai-noble-full yunmai-noble-simulator; do \
+		rm -f debian/$$pkg/usr/share/doc/$$pkg/changelog.gz; \
+	done
+
+# The payload is already built: stripping or rewriting it can corrupt Bun and
+# the GPUI binaries, and there are no local shared libraries to generate shlibs
+# for.
+override_dh_strip:
+override_dh_dwz:
+override_dh_makeshlibs:
+
+# Dependencies are the tested ones from the release packages; there is no
+# compilation here and the build chroot has no reason to carry the GUI runtime
+# libraries.
+override_dh_shlibdeps:
+
+# Units come from the payload and are enabled by the maintainer scripts.
+override_dh_installsystemd:
+override_dh_installsystemduser:

@@ -1,0 +1,18 @@
+This source package repackages the tagged release artifacts rather than
+compiling from source.
+
+The upstream/ directory contains the installed trees extracted from the
+release .deb files, per architecture:
+
+  upstream/yunmai-noble/amd64/...
+  upstream/yunmai-noble/arm64/...
+  upstream/yunmai-noble-desktop/{amd64,arm64}/...
+  upstream/yunmai-noble-simulator/{amd64,arm64}/...
+  upstream/yunmai-noble-full/all/...
+
+Those trees include the bundled Bun runtime, the GPUI binaries built by the
+release workflow, vendored production node_modules, the web UI, systemd units,
+and conffiles. debian/rules installs the tree that matches DEB_HOST_ARCH.
+
+The binaries are prebuilt and are not rebuilt on Launchpad. That is acceptable
+for a PPA; it would not be acceptable for the Debian or Ubuntu archives.

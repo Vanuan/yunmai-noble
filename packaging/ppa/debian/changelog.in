@@ -1,0 +1,5 @@
+yunmai-noble (@VERSION@) @SERIES@; urgency=medium
+
+  * PPA build of @UPSTREAM@ from the tagged release artifacts.
+
+ -- Vanuan <vanuan@gmail.com>  @DATE@

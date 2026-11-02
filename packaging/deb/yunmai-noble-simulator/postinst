@@ -16,4 +16,6 @@ if [ -d /run/systemd/system ]; then
   systemctl restart yunmai-noble-simulator.service || true
 fi
 
+#DEBHELPER#
+
 exit 0

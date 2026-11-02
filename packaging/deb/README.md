@@ -110,6 +110,8 @@ an `apt update` during a deployment can still resolve the old indices. It also
 publishes `yunmai-noble-archive-keyring.deb` at a stable URL for first-time
 setup. The release workflow also adds the two previous releases' packages, so
 the repository keeps three versions for pinning and for the by-hash transition.
+For Launchpad, `packaging/ppa/build-source.sh` repackages the same artifacts
+into a source package; see [packaging/ppa/README.md](../ppa/README.md).
 See [project/DISTRIBUTION.md](../../project/DISTRIBUTION.md) for the channel,
 signing-key, and retention details.
 

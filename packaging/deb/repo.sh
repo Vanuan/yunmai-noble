@@ -144,9 +144,9 @@ dists="$OUT/dists/$SUITE"
 release="$dists/Release"
 
 if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
-  date_value=$(date -u -R -d "@$SOURCE_DATE_EPOCH")
+  date_value=$(LC_ALL=C date -u -R -d "@$SOURCE_DATE_EPOCH")
 else
-  date_value=$(date -u -R)
+  date_value=$(LC_ALL=C date -u -R)
 fi
 
 {

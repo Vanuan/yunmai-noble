@@ -160,6 +160,11 @@ jobs:
           packaging/deb/repo.sh --in dist/deb --out dist/apt
           --seed-url https://vanuan.github.io/yunmai-noble/apt
 
+      - name: Build PPA source package
+        run: >-
+          packaging/ppa/build-source.sh --in dist/release --out dist/ppa
+          --series noble
+
       - name: Stage Pages site
         run: |
           mkdir -p site
@@ -201,3 +206,10 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "${files[@]}" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi
+
+      - name: Attach PPA source package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find dist/ppa -maxdepth 1 -type f -print0 |
+            xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber
