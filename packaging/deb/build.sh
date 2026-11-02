@@ -5,7 +5,7 @@
 # explicitly so the same layout can be reused by CI or a Nix derivation later.
 #
 #   packaging/deb/build.sh
-#   packaging/deb/build.sh --arch arm64 --version 0.2.2 --out dist/deb
+#   packaging/deb/build.sh --arch arm64 --version 0.2.3 --out dist/deb
 #
 set -euo pipefail
 

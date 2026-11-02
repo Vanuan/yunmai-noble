@@ -9,6 +9,4 @@ if [ "$1" = "purge" ]; then
   rm -rf /var/lib/yunmai-noble-simulator
 fi
 
-#DEBHELPER#
-
 exit 0

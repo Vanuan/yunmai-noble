@@ -119,15 +119,15 @@ signing-key, and retention details.
 
 ```sh
 # desktop + service from the local files
-sudo apt install ./yunmai-noble_0.2.2_amd64.deb \
-                 ./yunmai-noble-desktop_0.2.2_amd64.deb \
-                 ./yunmai-noble-full_0.2.2_all.deb
+sudo apt install ./yunmai-noble_0.2.3_amd64.deb \
+                 ./yunmai-noble-desktop_0.2.3_amd64.deb \
+                 ./yunmai-noble-full_0.2.3_all.deb
 
 # headless service only
-sudo apt install ./yunmai-noble_0.2.2_amd64.deb
+sudo apt install ./yunmai-noble_0.2.3_amd64.deb
 
 # optional parallel demo instance
-sudo apt install ./yunmai-noble-simulator_0.2.2_amd64.deb
+sudo apt install ./yunmai-noble-simulator_0.2.3_amd64.deb
 ```
 
 With the APT repository configured, `sudo apt install yunmai-noble-full` is
@@ -136,7 +136,7 @@ package first:
 
 ```sh
 packaging/deb/keyring.sh --out dist/deb
-sudo apt install ./yunmai-noble-archive-keyring_0.2.2_all.deb
+sudo apt install ./yunmai-noble-archive-keyring_0.2.3_all.deb
 sudo apt update
 sudo apt install yunmai-noble-full
 ```

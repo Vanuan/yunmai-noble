@@ -133,6 +133,8 @@ cp "$TEMPLATES/source/format" "$SRC/debian/source/format"
 for pkg in yunmai-noble yunmai-noble-simulator; do
   for script in postinst prerm postrm; do
     cp "$APP_DEB_DIR/$pkg/$script" "$SRC/debian/$pkg.$script"
+    # debhelper expects the token; the release packages do not use debhelper.
+    sed -i 's/^exit 0$/#DEBHELPER#\n\nexit 0/' "$SRC/debian/$pkg.$script"
     chmod 0755 "$SRC/debian/$pkg.$script"
   done
 done

@@ -1,3 +1,10 @@
+yunmai-noble (0.2.3) unstable; urgency=medium
+
+  * Add Launchpad PPA source packaging and attach it to each release.
+  * Validate source-package generation in CI.
+
+ -- Vanuan <vanuan@gmail.com>  Mon, 02 Nov 2026 12:00:00 +0000
+
 yunmai-noble (0.2.2) unstable; urgency=medium
 
   * List retained package versions in the APT index with --multiversion,

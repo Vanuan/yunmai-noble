@@ -22,6 +22,4 @@ if [ -d /run/systemd/system ]; then
   systemctl restart yunmai-noble.service || true
 fi
 
-#DEBHELPER#
-
 exit 0
