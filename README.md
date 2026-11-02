@@ -6,9 +6,10 @@ single-executable suite that runs them together.
 ## Install
 
 Debian, Ubuntu, and Raspberry Pi OS users install signed `.deb` packages from
-the APT repository. See [INSTALL.md](INSTALL.md) for adding the source,
-updating, installing, and removing the packages. The rest of this file covers
-running from a checkout.
+the APT repository, or from the packages attached to the
+[latest release](https://github.com/Vanuan/yunmai-noble/releases/latest). See
+[INSTALL.md](INSTALL.md) for adding the source, updating, installing, and
+removing the packages. The rest of this file covers running from a checkout.
 
 
 ## Development quick start

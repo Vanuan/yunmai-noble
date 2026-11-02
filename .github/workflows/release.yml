@@ -215,7 +215,8 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
           else
             gh release create "$GITHUB_REF_NAME" "${files[@]}" \
-              --title "$GITHUB_REF_NAME" --generate-notes
+              --title "$GITHUB_REF_NAME" --generate-notes \
+              --notes-file .github/release-notes.md
           fi
 
       - name: Attach PPA source package
