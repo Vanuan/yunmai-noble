@@ -8,7 +8,35 @@ test("defaults to the real BLE driver", () => {
     drivers: ["dbus"],
     nodeIdPrefix: "scale",
     restartMs: 2000,
+    simulator: {
+      name: "YUNMAI-SIM",
+      weightKg: 7.5,
+      steps: 8,
+      intervalMs: 300,
+      cycleDelayMs: 5000,
+      scanDelayMs: 200,
+      autoStart: false,
+      repeat: false,
+    },
   });
+});
+
+test("reads the simulator settings the driver receives", () => {
+  const config = loadSuiteConfig({
+    SUITE_SCALES: "simulator",
+    SIMULATOR_WEIGHT_KG: "72.4",
+    SIMULATOR_STEPS: "6",
+    SIMULATOR_INTERVAL_MS: "200",
+    SIMULATOR_CYCLE_DELAY_MS: "4000",
+    SIMULATOR_REPEAT: "true",
+  });
+
+  assert.equal(config.simulator.weightKg, 72.4);
+  assert.equal(config.simulator.steps, 6);
+  assert.equal(config.simulator.intervalMs, 200);
+  assert.equal(config.simulator.cycleDelayMs, 4000);
+  assert.equal(config.simulator.repeat, true);
+  assert.equal(config.simulator.autoStart, false);
 });
 
 test("parses and deduplicates multiple drivers", () => {

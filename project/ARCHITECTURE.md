@@ -77,12 +77,16 @@ or ship it as a sidecar.
 
 `apps/desktop` is a Rust/GPUI client built on `gpui-unofficial`. It reads the
 historian's HTTP API (`/health`, `/api/measurements/latest`,
-`/api/measurements`) and never touches BLE, SQLite, or the node WebSocket. The
+`/api/measurements`, `/api/suite`, `/api/suite/settings`) and never touches BLE,
+SQLite, or the node WebSocket. The
 window uses client-side chrome (titlebar, close, drag, edge resize). A startup
 preflight probes `/health` and can start a packaged `yunmai-noble.service`
 system or user unit, or the dev suite, before opening. The titlebar Settings
 dialog has the driver selector: it reads `/api/suite`, starts the chosen
-driver, stops the others, and persists the choice in the user config. The
+driver, stops the others, and persists the choice in the user config. It also
+lists the server, database, bridge, and driver states from `/health`, and the
+effective TOML-backed settings with the config file they came from
+(`/api/suite/settings`). The
 desktop app is the control surface; the service is one suite process. It polls every two seconds;
 SSE live readings and a trend chart come next. A second GPUI binary,
 `apps/simulator`, is a virtual-scale control surface for the simulator driver.

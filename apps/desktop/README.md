@@ -60,9 +60,21 @@ entries for the real service and the simulator.
 
 ## Driver selection
 
-The titlebar **Settings** button opens a dialog with the three suite drivers:
-**Simulator**, **D-Bus**, and **Node bindings** (`noble`). Selecting one starts
-it and stops the others via `POST /api/suite/drivers/{driver}/{start,stop}`.
+The titlebar **Settings** button opens a dialog with three sections:
+
+- **Status** - the historian URL, database health, one row per attached bridge
+  (driver, URL, last message or last error), and the drivers that are running.
+- **Drivers** - the three suite drivers.
+- **Configuration** - the resolved TOML settings (`historian.*`, `drivers.*`,
+  `simulator.*`) and the config file they came from, or "built-in defaults"
+  when no file was loaded. The values come from `GET /api/suite/settings`, which
+  reports what the suite resolved after applying environment overrides and
+  strips credentials from upstream URLs. A historian running on its own has no
+  suite configuration, so only the status section is filled in.
+
+The driver section works as follows. The options are **Simulator**, **D-Bus**,
+and **Node bindings** (`noble`). Selecting one starts it and stops the others
+via `POST /api/suite/drivers/{driver}/{start,stop}`.
 Clicking the active driver stops it and forgets the choice. The selection is
 saved to `$XDG_CONFIG_HOME/yunmai-noble/desktop.json` (or
 `~/.config/yunmai-noble/desktop.json`) and reapplied on the next launch.

@@ -33,6 +33,9 @@ async function main(): Promise<void> {
       handleSuiteRequest(request, url, {
         supervisor,
         ingests: app.ingests,
+        configPath: configFile.path,
+        suite: suiteConfig,
+        historian: historianConfig,
       }),
   });
 

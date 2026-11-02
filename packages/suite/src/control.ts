@@ -1,11 +1,15 @@
 import type { IngestGroup, IngestSourceStatus } from "@yunmai-noble/historian";
+import type { HistorianConfig } from "@yunmai-noble/historian/config";
 
-import { DRIVERS, isDriverName } from "./config";
+import { DRIVERS, isDriverName, type SuiteConfig } from "./config";
 import type { DriverSupervisor, DriverView } from "./supervisor";
 
 export interface SuiteControlOptions {
   supervisor: DriverSupervisor;
   ingests: IngestGroup;
+  configPath: string | null;
+  suite: SuiteConfig;
+  historian: HistorianConfig;
 }
 
 interface DriverResponse extends DriverView {
@@ -36,6 +40,46 @@ function describe(options: SuiteControlOptions): {
       ...view,
       upstream: options.ingests.get(view.driver)?.status() ?? null,
     })),
+  };
+}
+
+/** Drop credentials from upstream URLs before they reach a UI. */
+function redactUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    url.username = "";
+    url.password = "";
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+// Effective configuration: the values the running process resolved from the
+// config file, the environment, and the built-in defaults. Passwords in upstream
+// URLs are stripped because this is served to any API client.
+function settings(options: SuiteControlOptions): unknown {
+  const { historian, suite } = options;
+
+  return {
+    configPath: options.configPath,
+    historian: {
+      host: historian.host,
+      port: historian.port,
+      databasePath: historian.databasePath,
+      corsOrigin: historian.corsOrigin,
+      sseHeartbeatMs: historian.sseHeartbeatMs,
+      reconnectMinMs: historian.reconnectMinMs,
+      reconnectMaxMs: historian.reconnectMaxMs,
+      upstreamUrls: historian.upstreamUrls.map(redactUrl),
+      deviceId: historian.deviceId,
+    },
+    drivers: {
+      initial: suite.drivers,
+      nodeIdPrefix: suite.nodeIdPrefix,
+      restartMs: suite.restartMs,
+    },
+    simulator: { ...suite.simulator },
   };
 }
 
@@ -100,6 +144,13 @@ export async function handleSuiteRequest(
       return error(405, "method_not_allowed", "Use GET");
     }
     return json(describe(options));
+  }
+
+  if (url.pathname === "/api/suite/settings") {
+    if (request.method !== "GET") {
+      return error(405, "method_not_allowed", "Use GET");
+    }
+    return json(settings(options));
   }
 
   if (

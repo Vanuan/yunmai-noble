@@ -49,6 +49,66 @@ pub struct Health {
     pub status: String,
     pub database: DatabaseHealth,
     pub upstream: UpstreamHealth,
+    /// One entry per attached driver; empty for a standalone historian.
+    #[serde(default)]
+    pub upstreams: Vec<UpstreamStatus>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpstreamStatus {
+    pub id: String,
+    pub url: String,
+    pub configured: bool,
+    pub connected: bool,
+    pub last_message_at: Option<String>,
+    pub last_error: Option<String>,
+}
+
+/// Effective suite configuration, as resolved from the TOML file, the
+/// environment, and the built-in defaults.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuiteSettings {
+    pub config_path: Option<String>,
+    pub historian: HistorianSettings,
+    pub drivers: DriverSettings,
+    pub simulator: SimulatorSettings,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistorianSettings {
+    pub host: String,
+    pub port: u16,
+    pub database_path: String,
+    pub cors_origin: String,
+    pub sse_heartbeat_ms: u64,
+    pub reconnect_min_ms: u64,
+    pub reconnect_max_ms: u64,
+    pub upstream_urls: Vec<String>,
+    pub device_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriverSettings {
+    pub initial: Vec<String>,
+    pub node_id_prefix: String,
+    pub restart_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimulatorSettings {
+    pub name: String,
+    pub weight_kg: f64,
+    pub steps: u32,
+    pub interval_ms: u32,
+    pub cycle_delay_ms: u32,
+    pub scan_delay_ms: u32,
+    pub auto_start: bool,
+    pub repeat: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -157,6 +217,11 @@ impl HistorianClient {
 
     pub fn suite(&self) -> Result<SuiteState, String> {
         self.get_json::<SuiteState>("/api/suite")
+    }
+
+    /// Effective suite configuration. Absent when the historian runs on its own.
+    pub fn settings(&self) -> Result<Option<SuiteSettings>, String> {
+        self.get_optional("/api/suite/settings")
     }
 
     /// Start or stop one driver. The caller is responsible for stopping the
@@ -435,6 +500,94 @@ mod tests {
 
         let client = HistorianClient::new(format!("http://{address}"));
         assert_eq!(client.clear_measurements().unwrap(), 3);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn deserializes_suite_settings() {
+        let settings: SuiteSettings = serde_json::from_str(
+            r#"{
+                "configPath": "/etc/yunmai-noble/config.toml",
+                "historian": {
+                    "host": "127.0.0.1",
+                    "port": 3100,
+                    "databasePath": "/var/lib/yunmai-noble/historian.sqlite",
+                    "corsOrigin": "*",
+                    "sseHeartbeatMs": 15000,
+                    "reconnectMinMs": 1000,
+                    "reconnectMaxMs": 30000,
+                    "upstreamUrls": [],
+                    "deviceId": "yunmai-noble"
+                },
+                "drivers": { "initial": ["simulator"], "nodeIdPrefix": "sim", "restartMs": 2000 },
+                "simulator": {
+                    "name": "YUNMAI-SIM",
+                    "weightKg": 72.4,
+                    "steps": 8,
+                    "intervalMs": 250,
+                    "cycleDelayMs": 5000,
+                    "scanDelayMs": 200,
+                    "autoStart": false,
+                    "repeat": false
+                }
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            settings.config_path.as_deref(),
+            Some("/etc/yunmai-noble/config.toml")
+        );
+        assert_eq!(settings.historian.port, 3100);
+        assert_eq!(settings.simulator.weight_kg, 72.4);
+        assert!(!settings.simulator.repeat);
+    }
+
+    #[test]
+    fn deserializes_health_upstreams() {
+        let health: Health = serde_json::from_str(
+            r#"{
+                "status": "ok",
+                "database": { "ok": true },
+                "upstream": { "configured": true, "connected": true, "lastMessageAt": null, "lastError": null },
+                "upstreams": [
+                    { "id": "simulator", "url": "ws://127.0.0.1:8081", "configured": true, "connected": true, "lastMessageAt": "2026-11-01T10:00:01.000Z", "lastError": null }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(health.upstreams.len(), 1);
+        assert_eq!(health.upstreams[0].id, "simulator");
+        assert!(health.upstreams[0].connected);
+    }
+
+    #[test]
+    fn treats_a_missing_settings_endpoint_as_standalone() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 2048];
+            let read = stream.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            assert!(
+                request.starts_with("GET /api/suite/settings "),
+                "unexpected request: {request}"
+            );
+
+            write!(
+                stream,
+                "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+        });
+
+        let client = HistorianClient::new(format!("http://{address}"));
+        assert!(client.settings().unwrap().is_none());
         server.join().unwrap();
     }
 

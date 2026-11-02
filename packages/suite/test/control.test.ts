@@ -2,7 +2,9 @@ import { test } from "bun:test";
 import assert from "node:assert/strict";
 
 import type { IngestGroup } from "@yunmai-noble/historian";
+import { loadConfig } from "@yunmai-noble/historian/config";
 
+import { loadSuiteConfig } from "../src/config";
 import { handleSuiteRequest } from "../src/control";
 import type { DriverSupervisor, DriverView } from "../src/supervisor";
 
@@ -83,6 +85,16 @@ function options(
   return {
     supervisor: supervisor(driver, available),
     ingests: ingests(),
+    configPath: "/etc/yunmai-noble/config.toml",
+    suite: loadSuiteConfig({
+      SUITE_SCALES: "simulator",
+      SIMULATOR_STEPS: "6",
+    }),
+    historian: loadConfig({
+      HISTORIAN_PORT: "3000",
+      DATABASE_PATH: "/var/lib/yunmai-noble/historian.sqlite",
+      YUNMAI_WS_URLS: "ws://user:secret@example.test/ws",
+    }),
   };
 }
 
@@ -111,6 +123,31 @@ test("lists drivers with their upstream status", async () => {
     lastMessageAt: "2026-11-01T10:00:01.000Z",
     lastError: null,
   });
+});
+
+test("reports the effective settings without upstream credentials", async () => {
+  const response = await handleSuiteRequest(
+    request("GET", "/api/suite/settings"),
+    url("/api/suite/settings"),
+    options()
+  );
+
+  assert.ok(response);
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    configPath: string | null;
+    historian: { port: number; upstreamUrls: string[]; databasePath: string };
+    drivers: { initial: string[] };
+    simulator: { steps: number; repeat: boolean };
+  };
+
+  assert.equal(body.configPath, "/etc/yunmai-noble/config.toml");
+  assert.equal(body.historian.port, 3000);
+  assert.equal(body.historian.databasePath, "/var/lib/yunmai-noble/historian.sqlite");
+  assert.deepEqual(body.historian.upstreamUrls, ["ws://example.test/ws"]);
+  assert.deepEqual(body.drivers.initial, ["simulator"]);
+  assert.equal(body.simulator.steps, 6);
+  assert.equal(body.simulator.repeat, false);
 });
 
 test("omits drivers the service cannot run", async () => {

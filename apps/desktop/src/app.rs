@@ -8,7 +8,7 @@ use gpui::{
     ScrollHandle, SharedString, Stateful, Window, div, prelude::*, px, rgb,
 };
 
-use crate::api::{DriverStatus, HistorianClient, Measurement, SuiteState};
+use crate::api::{DriverStatus, HistorianClient, Measurement, SuiteSettings, SuiteState};
 use crate::format::{format_age, format_timestamp, format_weight};
 
 const BG: u32 = 0xfafaf9;
@@ -66,6 +66,9 @@ pub struct Dashboard {
     view: View,
     history: HistoryState,
     history_scroll: ScrollHandle,
+    settings: Option<SuiteSettings>,
+    settings_error: Option<String>,
+    settings_loading: bool,
 }
 
 impl Dashboard {
@@ -131,6 +134,9 @@ impl Dashboard {
             view: View::Dashboard,
             history: HistoryState::default(),
             history_scroll: ScrollHandle::new(),
+            settings: None,
+            settings_error: None,
+            settings_loading: false,
         }
     }
 
@@ -450,25 +456,200 @@ impl Dashboard {
             .children(driver_error.as_deref().map(error_banner))
     }
 
+    fn open_settings(&mut self, cx: &mut Context<Self>) {
+        self.settings_open = true;
+        self.load_settings(cx);
+        cx.notify();
+    }
+
+    /// The dialog reports the configuration the suite resolved at startup, so
+    /// refetch it whenever the dialog opens rather than polling it.
+    fn load_settings(&mut self, cx: &mut Context<Self>) {
+        if self.settings_loading {
+            return;
+        }
+        self.settings_loading = true;
+        self.settings_error = None;
+
+        let url = self.historian_url.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move { HistorianClient::new(url).settings() })
+                .await;
+
+            this.update(cx, |state, cx| {
+                state.settings_loading = false;
+                match result {
+                    Ok(settings) => {
+                        state.settings = settings;
+                        state.settings_error = None;
+                    }
+                    Err(message) => state.settings_error = Some(message),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Server, database, bridge, and driver states in one list.
+    fn status_section(&self) -> Div {
+        let (status, tone) = self.status();
+        let health = self.snapshot.as_ref().map(|snapshot| &snapshot.health);
+        let database = self
+            .settings
+            .as_ref()
+            .map(|settings| settings.historian.database_path.clone())
+            .unwrap_or_else(|| "-".to_string());
+
+        let mut rows = vec![
+            status_row("server", self.historian_url.clone(), status, tone),
+            match health {
+                Some(health) if health.database.ok => status_row("database", database, "ok", GREEN),
+                Some(_) => status_row("database", database, "error", RED),
+                None => status_row("database", database, "unknown", MUTED),
+            },
+        ];
+
+        match health {
+            Some(health) if !health.upstreams.is_empty() => {
+                for upstream in health
+                    .upstreams
+                    .iter()
+                    .filter(|upstream| upstream.configured)
+                {
+                    let (label, tone) = if upstream.connected {
+                        ("connected", GREEN)
+                    } else {
+                        ("disconnected", AMBER)
+                    };
+                    let detail = if upstream.connected {
+                        match upstream.last_message_at.as_deref() {
+                            Some(at) => {
+                                format!(
+                                    "{} · {} · last message {}",
+                                    upstream.id,
+                                    upstream.url,
+                                    format_timestamp(at)
+                                )
+                            }
+                            None => format!("{} · {} · no messages yet", upstream.id, upstream.url),
+                        }
+                    } else {
+                        match upstream.last_error.as_deref() {
+                            Some(error) => format!("{} · {error}", upstream.id),
+                            None => format!("{} · {}", upstream.id, upstream.url),
+                        }
+                    };
+                    rows.push(status_row("bridge", detail, label, tone));
+                }
+            }
+            Some(health) if health.upstream.configured => {
+                let (label, tone) = if health.upstream.connected {
+                    ("connected", GREEN)
+                } else {
+                    ("disconnected", AMBER)
+                };
+                let detail = health
+                    .upstream
+                    .last_message_at
+                    .as_deref()
+                    .map(format_timestamp)
+                    .unwrap_or_else(|| "no messages yet".to_string());
+                rows.push(status_row("bridge", detail, label, tone));
+            }
+            _ => rows.push(status_row(
+                "bridge",
+                "no upstream configured".to_string(),
+                "local",
+                MUTED,
+            )),
+        }
+
+        if let Some(suite) = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.suite.as_ref())
+        {
+            let running: Vec<&str> = suite
+                .drivers
+                .iter()
+                .filter(|entry| entry.state == "running")
+                .map(|entry| driver_label(&entry.driver))
+                .collect();
+            rows.push(status_row(
+                "drivers",
+                if running.is_empty() {
+                    "none running".to_string()
+                } else {
+                    running.join(", ")
+                },
+                format!("{} attached", suite.drivers.len()),
+                MUTED,
+            ));
+        }
+
+        div().flex().flex_col().children(rows)
+    }
+
+    /// The TOML-backed settings the suite resolved, plus where they came from.
+    fn config_section(&self) -> Div {
+        let mut section = div()
+            .flex()
+            .flex_col()
+            .gap_5()
+            .child(section_title("Configuration"));
+
+        let Some(settings) = self.settings.as_ref() else {
+            return section.child(div().text_xs().text_color(rgb(MUTED)).child(
+                if self.settings_loading {
+                    "Reading the configuration..."
+                } else if self.settings_error.is_some() {
+                    "The configuration could not be read."
+                } else {
+                    "This historian runs on its own, so it has no suite configuration."
+                },
+            ));
+        };
+
+        section = section.child(config_row(
+            "file",
+            settings
+                .config_path
+                .clone()
+                .unwrap_or_else(|| "built-in defaults".to_string()),
+        ));
+
+        for (label, value) in config_rows(settings) {
+            section = section.child(config_row(label, value));
+        }
+
+        section
+    }
+
     fn settings_dialog(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let panel = div()
             .id("settings-panel")
-            .w(px(560.))
+            .w(px(640.))
+            .max_h(px(680.))
             .rounded_2xl()
             .border_1()
             .border_color(rgb(BORDER))
             .bg(rgb(CARD))
             .shadow_2xl()
-            .p_6()
             .flex()
             .flex_col()
-            .gap_5()
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .child(
                 div()
+                    .flex_none()
                     .flex()
                     .items_center()
                     .justify_between()
+                    .px_6()
+                    .pt_6()
+                    .pb_3()
                     .child(
                         div()
                             .text_lg()
@@ -496,7 +677,23 @@ impl Dashboard {
                             .child("×"),
                     ),
             )
-            .child(self.driver_settings(cx));
+            .child(
+                div()
+                    .id("settings-body")
+                    .flex_1()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
+                    .px_6()
+                    .pb_6()
+                    .flex()
+                    .flex_col()
+                    .gap_5()
+                    .child(section_title("Status"))
+                    .child(self.status_section())
+                    .child(section_title("Drivers"))
+                    .child(self.driver_settings(cx))
+                    .child(self.config_section()),
+            );
 
         div()
             .id("settings-backdrop")
@@ -1217,10 +1414,7 @@ impl Dashboard {
                             .cursor(CursorStyle::PointingHand)
                             .hover(|this| this.bg(rgb(BORDER)).text_color(rgb(TEXT)))
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                            .on_click(cx.listener(|state, _, _, cx| {
-                                state.settings_open = true;
-                                cx.notify();
-                            }))
+                            .on_click(cx.listener(|state, _, _, cx| state.open_settings(cx)))
                             .child("Settings"),
                     )
                     .child(
@@ -1448,6 +1642,111 @@ fn history_detail_row(measurement: &Measurement) -> Div {
         )
 }
 
+fn section_title(label: &str) -> Div {
+    div()
+        .text_xs()
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(MUTED))
+        .child(label.to_string())
+}
+
+fn status_row(
+    label: &'static str,
+    detail: String,
+    value: impl Into<SharedString>,
+    tone: u32,
+) -> Div {
+    div()
+        .flex()
+        .items_center()
+        .gap_3()
+        .py_2()
+        .border_b_1()
+        .border_color(rgb(BORDER))
+        .child(
+            div()
+                .w(px(72.))
+                .text_xs()
+                .text_color(rgb(MUTED))
+                .child(label),
+        )
+        .child(div().flex_1().text_xs().child(detail))
+        .child(badge(value, tone))
+}
+
+fn config_row(label: &'static str, value: String) -> Div {
+    div()
+        .flex()
+        .items_start()
+        .gap_4()
+        .py_1()
+        .child(
+            div()
+                .w(px(220.))
+                .flex_none()
+                .text_xs()
+                .text_color(rgb(MUTED))
+                .child(label),
+        )
+        .child(div().flex_1().text_xs().child(value))
+}
+
+fn join_or(values: &[String], empty: &str) -> String {
+    if values.is_empty() {
+        empty.to_string()
+    } else {
+        values.join(", ")
+    }
+}
+
+/// Every TOML-backed setting, in config-file order.
+fn config_rows(settings: &SuiteSettings) -> Vec<(&'static str, String)> {
+    let historian = &settings.historian;
+    let drivers = &settings.drivers;
+    let simulator = &settings.simulator;
+
+    vec![
+        ("historian.host", historian.host.clone()),
+        ("historian.port", historian.port.to_string()),
+        ("historian.database_path", historian.database_path.clone()),
+        ("historian.device_id", historian.device_id.clone()),
+        ("historian.cors_origin", historian.cors_origin.clone()),
+        (
+            "historian.sse_heartbeat_ms",
+            historian.sse_heartbeat_ms.to_string(),
+        ),
+        (
+            "historian.reconnect_min_ms",
+            historian.reconnect_min_ms.to_string(),
+        ),
+        (
+            "historian.reconnect_max_ms",
+            historian.reconnect_max_ms.to_string(),
+        ),
+        (
+            "historian.upstream_urls",
+            join_or(&historian.upstream_urls, "none"),
+        ),
+        ("drivers.initial", join_or(&drivers.initial, "default")),
+        ("drivers.node_id_prefix", drivers.node_id_prefix.clone()),
+        ("drivers.restart_ms", drivers.restart_ms.to_string()),
+        ("simulator.name", simulator.name.clone()),
+        ("simulator.weight_kg", format!("{:.2}", simulator.weight_kg)),
+        ("simulator.steps", simulator.steps.to_string()),
+        ("simulator.interval_ms", simulator.interval_ms.to_string()),
+        (
+            "simulator.cycle_delay_ms",
+            simulator.cycle_delay_ms.to_string(),
+        ),
+        (
+            "simulator.scan_delay_ms",
+            simulator.scan_delay_ms.to_string(),
+        ),
+        ("simulator.auto_start", simulator.auto_start.to_string()),
+        ("simulator.repeat", simulator.repeat.to_string()),
+    ]
+}
+
 fn open_in_browser(url: &str) -> Result<(), String> {
     let (program, prefix): (&str, &[&str]) = if cfg!(target_os = "macos") {
         ("open", &[])
@@ -1586,5 +1885,51 @@ mod tests {
         assert_eq!(driver_state(&entry("restarting")), ("Restarting", AMBER));
         assert_eq!(driver_state(&entry("failed")), ("Failed", RED));
         assert_eq!(driver_state(&entry("stopped")), ("Stopped", MUTED));
+    }
+
+    #[test]
+    fn lists_every_toml_backed_setting() {
+        let settings = SuiteSettings {
+            config_path: Some("/etc/yunmai-noble/config.toml".to_string()),
+            historian: crate::api::HistorianSettings {
+                host: "127.0.0.1".to_string(),
+                port: 3100,
+                database_path: "/var/lib/yunmai-noble/historian.sqlite".to_string(),
+                cors_origin: "*".to_string(),
+                sse_heartbeat_ms: 15000,
+                reconnect_min_ms: 1000,
+                reconnect_max_ms: 30000,
+                upstream_urls: Vec::new(),
+                device_id: "yunmai-noble".to_string(),
+            },
+            drivers: crate::api::DriverSettings {
+                initial: vec!["simulator".to_string()],
+                node_id_prefix: "sim".to_string(),
+                restart_ms: 2000,
+            },
+            simulator: crate::api::SimulatorSettings {
+                name: "YUNMAI-SIM".to_string(),
+                weight_kg: 72.4,
+                steps: 8,
+                interval_ms: 250,
+                cycle_delay_ms: 5000,
+                scan_delay_ms: 200,
+                auto_start: false,
+                repeat: false,
+            },
+        };
+
+        let rows = config_rows(&settings);
+        let value = |label: &str| {
+            rows.iter()
+                .find(|(key, _)| *key == label)
+                .map(|(_, value)| value.as_str())
+        };
+
+        assert_eq!(value("historian.port"), Some("3100"));
+        assert_eq!(value("historian.upstream_urls"), Some("none"));
+        assert_eq!(value("drivers.initial"), Some("simulator"));
+        assert_eq!(value("simulator.weight_kg"), Some("72.40"));
+        assert_eq!(value("simulator.repeat"), Some("false"));
     }
 }

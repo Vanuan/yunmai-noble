@@ -349,6 +349,19 @@ export class DriverSupervisor {
       if (controlPort !== null) {
         env.SIMULATOR_CONTROL_PORT = String(controlPort);
       }
+      if (record.driver === "simulator") {
+        // Pass every knob explicitly so the reported settings are the settings
+        // the driver actually runs with, rather than the driver's own defaults.
+        const simulator = this.config.simulator;
+        env.SIMULATOR_NAME = simulator.name;
+        env.SIMULATOR_WEIGHT_KG = String(simulator.weightKg);
+        env.SIMULATOR_STEPS = String(simulator.steps);
+        env.SIMULATOR_INTERVAL_MS = String(simulator.intervalMs);
+        env.SIMULATOR_CYCLE_DELAY_MS = String(simulator.cycleDelayMs);
+        env.SIMULATOR_SCAN_DELAY_MS = String(simulator.scanDelayMs);
+        env.SIMULATOR_AUTO_START = String(simulator.autoStart);
+        env.SIMULATOR_REPEAT = String(simulator.repeat);
+      }
 
       child = Bun.spawn({
         cmd: [runtime, NODE_SCRIPT],
