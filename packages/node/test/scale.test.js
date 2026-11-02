@@ -187,3 +187,33 @@ test('completed measurements include the configured body metrics', async functio
     scale.unsubscribe();
   }
 });
+
+test('does not weigh on its own unless configured to', async function() {
+  const scale = new Scale({
+    steps: 0,
+    intervalMs: 1,
+    cycleDelayMs: 1,
+    logger: SILENT_LOGGER
+  });
+
+  const measured = [];
+  scale.on('packet', function(packet) {
+    const parsed = protocol.parsePacket(packet);
+    if (parsed.packetType === protocol.PacketType.MEASURED) measured.push(parsed);
+  });
+
+  try {
+    scale.subscribe();
+    assert.equal(scale.running, false);
+    await new Promise(function(resolve) { setTimeout(resolve, 20); });
+    assert.equal(measured.length, 0);
+
+    scale.start();
+    await waitFor(function() { return measured.length > 0; }, 2000);
+    // A finished weighing must not start another one on its own.
+    await new Promise(function(resolve) { setTimeout(resolve, 20); });
+    assert.equal(measured.length, 1);
+  } finally {
+    scale.unsubscribe();
+  }
+});

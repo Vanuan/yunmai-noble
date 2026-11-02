@@ -9,8 +9,11 @@ const DEFAULT_OPTIONS = {
   steps: 8,
   intervalMs: 300,
   cycleDelayMs: 5000,
-  repeat: true,
-  autoStart: true,
+  // A simulated scale must not produce readings on its own: without these,
+  // subscribing starts a weighing and every finished weighing starts another.
+  // Demos that want a live feed set `repeat = true` in their config.
+  repeat: false,
+  autoStart: false,
   userId: 1,
   resistance: 0,
   fatPercentage: 0,

@@ -105,8 +105,11 @@ suite builds `packages/ui/dist` on first run; rebuild it with
 ## Simulator
 
 `SUITE_SCALES=simulator` (or `[drivers] initial = ["simulator"]`) runs a scale
-below the GATT layer inside the node child. It repeats a weighing every few
-seconds and accepts the same commands as the hardware. Tune it under
+below the GATT layer inside the node child. It accepts the same commands as the
+hardware and stays idle until told to start - **Step on** in the simulator
+console, `POST /api/suite/simulator/start`, or `SIMULATOR_AUTO_START=true`.
+Each weighing produces one reading. Set `repeat = true` under `[simulator]` (or
+`SIMULATOR_REPEAT=true`) to keep cycling every `cycle_delay_ms`. Tune it under
 `[simulator]` in the config file, or with `SIMULATOR_WEIGHT_KG`,
 `SIMULATOR_STEPS`, `SIMULATOR_INTERVAL_MS`, `SIMULATOR_CYCLE_DELAY_MS`,
 `SIMULATOR_AUTO_START`, and `SIMULATOR_REPEAT`.
