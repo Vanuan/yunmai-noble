@@ -1,3 +1,10 @@
+yunmai-noble (0.2.5) unstable; urgency=medium
+
+  * Build Launchpad source packages for noble and resolute from one shared
+    upstream tarball, and attach both to each release.
+
+ -- @MAINTAINER@  Mon, 02 Nov 2026 23:30:00 +0000
+
 yunmai-noble (0.2.4) unstable; urgency=medium
 
   * Give the GPUI windows an app id and an X11 icon, so the running app shows
