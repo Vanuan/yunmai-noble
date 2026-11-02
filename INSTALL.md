@@ -99,6 +99,22 @@ sudo apt update
 `Architectures` may be narrowed to your host architecture, or the line can be
 removed to use apt's defaults.
 
+## Install from the Launchpad PPA
+
+The [PPA](https://launchpad.net/~vanuan/yunmai-noble/+archive/ubuntu/yunmai-noble)
+publishes the same packages for Ubuntu 24.04 and 26.04, built by Launchpad from
+the release artifacts:
+
+```sh
+sudo add-apt-repository ppa:vanuan/yunmai-noble
+sudo apt update
+sudo apt install yunmai-noble-full
+```
+
+Use either this PPA or the APT repository above, not both: they publish the same
+package names. Launchpad signs the PPA with its own key, so
+`yunmai-noble-archive-keyring` is not involved.
+
 ## Update
 
 Refresh the lists and upgrade:
