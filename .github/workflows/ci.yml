@@ -101,7 +101,9 @@ jobs:
       - name: Lint packages
         run: lintian --fail-on error dist/deb/*.deb
 
-      - name: Build PPA source package
+      - name: Build PPA source packages
         run: |
-          packaging/ppa/build-source.sh --in dist/deb --out dist/ppa \
-            --series noble --no-sign
+          for series in noble resolute; do
+            packaging/ppa/build-source.sh --in dist/deb --out dist/ppa \
+              --series "$series" --no-sign
+          done

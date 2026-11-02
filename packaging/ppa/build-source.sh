@@ -163,13 +163,19 @@ sed \
 
 log "creating the orig tarball"
 ORIG="$OUT/yunmai-noble_${VERSION}.orig.tar.xz"
-rm -f "$ORIG"
-tar_opts=(--sort=name --owner=0 --group=0 --numeric-owner)
-if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
-  tar_opts+=(--mtime="@$SOURCE_DATE_EPOCH")
+# One orig tarball per version, shared by every series: Debian treats it as
+# immutable, and each .dsc checksums it, so a second series must reference the
+# same bytes rather than regenerate them.
+if [ -f "$ORIG" ]; then
+  log "reusing $ORIG"
+else
+  tar_opts=(--sort=name --owner=0 --group=0 --numeric-owner)
+  if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+    tar_opts+=(--mtime="@$SOURCE_DATE_EPOCH")
+  fi
+  tar --create --xz --file "$ORIG" --directory "$OUT" "${tar_opts[@]}" \
+    --exclude="yunmai-noble-${VERSION}/debian" "yunmai-noble-${VERSION}"
 fi
-tar --create --xz --file "$ORIG" --directory "$OUT" "${tar_opts[@]}" \
-  --exclude="yunmai-noble-${VERSION}/debian" "yunmai-noble-${VERSION}"
 
 log "building the source package"
 (

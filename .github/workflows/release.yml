@@ -160,10 +160,12 @@ jobs:
           packaging/deb/repo.sh --in dist/deb --out dist/apt
           --seed-url https://vanuan.github.io/yunmai-noble/apt
 
-      - name: Build PPA source package
-        run: >-
-          packaging/ppa/build-source.sh --in dist/release --out dist/ppa
-          --series noble
+      - name: Build PPA source packages
+        run: |
+          for series in noble resolute; do
+            packaging/ppa/build-source.sh --in dist/release --out dist/ppa \
+              --series "$series"
+          done
 
       - name: Bundle PPA source package
         run: |

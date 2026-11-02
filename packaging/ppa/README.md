@@ -23,25 +23,31 @@ Ubuntu archives.
 - Your GPG key registered at `https://launchpad.net/account/keys`
 - `dput` or `dput-ng`
 
-## Build the source package
+## Build the source packages
 
 ```sh
 gh release download v0.2.4 --repo Vanuan/yunmai-noble \
   --pattern '*.deb' --dir dist/release
-packaging/ppa/build-source.sh --in dist/release --out dist/ppa --series noble
+for series in noble resolute; do
+  packaging/ppa/build-source.sh --in dist/release --out dist/ppa --series "$series"
+done
 ```
 
 The input directory must contain `amd64` and `arm64` builds of `yunmai-noble`,
 `yunmai-noble-desktop`, and `yunmai-noble-simulator`, plus the `all`
 metapackage. The archive-keyring package is ignored.
 
-Outputs in `dist/ppa/`:
+Every series writes into the same directory. The first run creates
+`yunmai-noble_<version>.orig.tar.xz`; later runs reuse it, because Debian treats
+the orig tarball as immutable per version and each `.dsc` checksums it.
+
+Outputs in `dist/ppa/`: the shared tarball plus one set per series.
 
 ```
 yunmai-noble_<version>.orig.tar.xz
-yunmai-noble_<debian-version>.debian.tar.xz
-yunmai-noble_<debian-version>.dsc
-yunmai-noble_<debian-version>_source.changes
+yunmai-noble_<version>-0ubuntu1~<series>1.debian.tar.xz
+yunmai-noble_<version>-0ubuntu1~<series>1.dsc
+yunmai-noble_<version>-0ubuntu1~<series>1_source.changes
 ```
 
 Use `--no-sign` to produce an unsigned source package for inspection. The
@@ -50,19 +56,22 @@ The `Maintainer` field and changelog trailer come from
 `packaging/maintainer.env`, so the address published on Launchpad is set in
 one place.
 
-The release workflow also builds this source package and attaches it to the
-GitHub release as `yunmai-noble_<version>_ppa-source.tar`. GitHub replaces `~`
-in asset names with `.`, which would break the filenames referenced by the
-`.changes`, so the source files are bundled with their original names. Extract
-the tar and run `dput` on the `.changes` inside. The signing key must be
-registered with Launchpad; the release workflow signs with the repository key.
-For a passphrase-protected key, run the script where gpg-agent can unlock it.
+The release workflow also builds these source packages for `noble` and
+`resolute` and attaches them to the GitHub release as
+`yunmai-noble_<version>_ppa-source.tar`. GitHub replaces `~` in asset names with
+`.`, which would break the filenames referenced by the `.changes`, so the source
+files are bundled with their original names. Extract the tar and run `dput` on
+each `.changes` inside. The signing key must be registered with Launchpad; the
+release workflow signs with the repository key. For a passphrase-protected key,
+run the script where gpg-agent can unlock it.
 
 ## Upload
 
 ```sh
 dput ppa:vanuan/yunmai-noble \
   dist/ppa/yunmai-noble_0.2.4-0ubuntu1~noble1_source.changes
+dput ppa:vanuan/yunmai-noble \
+  dist/ppa/yunmai-noble_0.2.4-0ubuntu1~resolute1_source.changes
 ```
 
 If your `dput` does not support the `ppa:` shorthand, add this to
@@ -84,14 +93,10 @@ contains both trees.
 
 ## Series
 
-The changelog targets one Ubuntu series. For 26.04:
-
-```sh
-packaging/ppa/build-source.sh --in dist/release --out dist/ppa --series resolute
-```
-
-The version gets a `~resolute1` suffix; the upstream tarball is shared with the
-noble upload. Upload both `.changes` files.
+The Debian version carries the series, `-0ubuntu1~noble1` or
+`-0ubuntu1~resolute1`, and the same upstream tarball is used for all of them.
+The release workflow builds `noble` and `resolute`; upload a series only after
+enabling it on the PPA, and Launchpad creates a new series on the first upload.
 
 ## Users
 
