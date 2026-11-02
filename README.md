@@ -177,9 +177,9 @@ bun install
 packaging/deb/build.sh                   # writes dist/deb/*.deb
 
 # install the built files together, or add the repository and use apt
-sudo apt install ./dist/deb/yunmai-noble_0.2.3_amd64.deb \
-                 ./dist/deb/yunmai-noble-desktop_0.2.3_amd64.deb \
-                 ./dist/deb/yunmai-noble-full_0.2.3_all.deb
+sudo apt install ./dist/deb/yunmai-noble_0.2.4_amd64.deb \
+                 ./dist/deb/yunmai-noble-desktop_0.2.4_amd64.deb \
+                 ./dist/deb/yunmai-noble-full_0.2.4_all.deb
 ```
 
 | Package | What it installs |

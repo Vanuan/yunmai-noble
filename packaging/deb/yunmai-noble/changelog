@@ -1,3 +1,11 @@
+yunmai-noble (0.2.4) unstable; urgency=medium
+
+  * Give the GPUI windows an app id and an X11 icon, so the running app shows
+    its icon in the title bar and taskbar.
+  * Publish a role address in the package metadata and the signing key UID.
+
+ -- @MAINTAINER@  Mon, 02 Nov 2026 22:00:00 +0000
+
 yunmai-noble (0.2.3) unstable; urgency=medium
 
   * Add Launchpad PPA source packaging and attach it to each release.

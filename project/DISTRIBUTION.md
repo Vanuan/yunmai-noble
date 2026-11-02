@@ -60,8 +60,8 @@ Setup once:
 Then:
 
 ```sh
-git tag v0.2.3
-git push origin v0.2.3
+git tag v0.2.4
+git push origin v0.2.4
 ```
 
 ## Launchpad PPA

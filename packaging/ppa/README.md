@@ -26,7 +26,7 @@ Ubuntu archives.
 ## Build the source package
 
 ```sh
-gh release download v0.2.3 --repo Vanuan/yunmai-noble \
+gh release download v0.2.4 --repo Vanuan/yunmai-noble \
   --pattern '*.deb' --dir dist/release
 packaging/ppa/build-source.sh --in dist/release --out dist/ppa --series noble
 ```
@@ -62,7 +62,7 @@ For a passphrase-protected key, run the script where gpg-agent can unlock it.
 
 ```sh
 dput ppa:vanuan/yunmai-noble \
-  dist/ppa/yunmai-noble_0.2.3-0ubuntu1~noble1_source.changes
+  dist/ppa/yunmai-noble_0.2.4-0ubuntu1~noble1_source.changes
 ```
 
 If your `dput` does not support the `ppa:` shorthand, add this to
