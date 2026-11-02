@@ -1,7 +1,7 @@
 Source: yunmai-noble
 Section: utils
 Priority: optional
-Maintainer: Vanuan <vanuan@gmail.com>
+Maintainer: @MAINTAINER@
 Homepage: https://github.com/Vanuan/yunmai-noble
 Standards-Version: 4.7.0
 Rules-Requires-Root: no

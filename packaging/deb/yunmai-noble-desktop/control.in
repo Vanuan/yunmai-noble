@@ -1,7 +1,7 @@
 Package: yunmai-noble-desktop
 Version: @VERSION@
 Architecture: @ARCH@
-Maintainer: Vanuan <vanuan@gmail.com>
+Maintainer: @MAINTAINER@
 Installed-Size: @INSTALLED_SIZE@
 Homepage: https://github.com/Vanuan/yunmai-noble
 Depends: fontconfig, libc6 (>= @LIBC@), libfreetype6, libgcc-s1, libxau6, libxcb-xkb1, libxcb1, libxdmcp6, libxkbcommon-x11-0, libxkbcommon0

@@ -46,6 +46,9 @@ yunmai-noble_<debian-version>_source.changes
 
 Use `--no-sign` to produce an unsigned source package for inspection. The
 signing key is taken from `--gpg-key`, `GPG_KEY_ID`, or the first secret key.
+The `Maintainer` field and changelog trailer come from
+`packaging/maintainer.env`, so the address published on Launchpad is set in
+one place.
 
 The release workflow also builds this source package and attaches it to the
 GitHub release as `yunmai-noble_<version>_ppa-source.tar`. GitHub replaces `~`

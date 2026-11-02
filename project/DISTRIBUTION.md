@@ -133,7 +133,7 @@ The key signs `dists/stable/InRelease`, `dists/stable/Release.gpg`, and
 Generate an archive key once:
 
 ```sh
-gpg --quick-generate-key "Yunmai Noble Archive <archive@yunmai.dev>" ed25519 sign 5y
+gpg --quick-generate-key "Yunmai Noble Archive <vanuan@users.noreply.github.com>" ed25519 sign 5y
 gpg --armor --export-secret-keys <fingerprint>   # repository secret
 ```
 

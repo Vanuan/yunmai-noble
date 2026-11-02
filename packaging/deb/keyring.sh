@@ -12,6 +12,9 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PKG_DIR="$ROOT/packaging/deb/yunmai-noble-archive-keyring"
+# shellcheck source=../maintainer.env
+. "$ROOT/packaging/maintainer.env"
+MAINTAINER=${MAINTAINER:?packaging/maintainer.env must set MAINTAINER}
 OUT="$ROOT/dist/deb"
 VERSION=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1)
 GPG_KEY=""
@@ -85,8 +88,8 @@ cp "$PKG_DIR/README.Debian" "$ROOT/packaging/deb/yunmai-noble/copyright" \
   "$PKG/usr/share/doc/yunmai-noble-archive-keyring/"
 cp "$PKG_DIR/lintian-overrides" \
   "$PKG/usr/share/lintian/overrides/yunmai-noble-archive-keyring"
-gzip -9n -c "$ROOT/packaging/deb/yunmai-noble/changelog" \
-  > "$PKG/usr/share/doc/yunmai-noble-archive-keyring/changelog.gz"
+sed "s|@MAINTAINER@|$MAINTAINER|g" "$ROOT/packaging/deb/yunmai-noble/changelog" |
+  gzip -9n > "$PKG/usr/share/doc/yunmai-noble-archive-keyring/changelog.gz"
 
 printf '%s\n' /etc/apt/sources.list.d/yunmai-noble.sources \
   > "$PKG/DEBIAN/conffiles"
@@ -94,6 +97,7 @@ printf '%s\n' /etc/apt/sources.list.d/yunmai-noble.sources \
 installed_size=$(du -sk "$PKG/usr" | awk '{print $1}')
 sed \
   -e "s|@VERSION@|$VERSION|g" \
+  -e "s|@MAINTAINER@|$MAINTAINER|g" \
   -e "s|@INSTALLED_SIZE@|$installed_size|g" \
   "$PKG_DIR/control.in" > "$PKG/DEBIAN/control"
 

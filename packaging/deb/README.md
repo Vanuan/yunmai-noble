@@ -89,6 +89,12 @@ Useful flags:
 - `--libc <version>` overrides the detected `libc6` minimum.
 - `--stage <dir>` keeps the staged trees for inspection.
 
+The identity published in the package metadata (the `Maintainer` field, the
+changelog trailers, and the copyright holder) comes from
+`packaging/maintainer.env`. Change it there rather than in the individual
+`control.in`, `changelog`, and `copyright` files; the build scripts substitute
+it into every package.
+
 `--omit=optional` is what keeps the legacy `@abandonware/noble` addon out of
 the package; it requires Node 22 and does not load under Bun. The `dbus`
 driver is the only hardware path shipped.

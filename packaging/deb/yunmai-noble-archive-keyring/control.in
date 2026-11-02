@@ -1,7 +1,7 @@
 Package: yunmai-noble-archive-keyring
 Version: @VERSION@
 Architecture: all
-Maintainer: Vanuan <vanuan@gmail.com>
+Maintainer: @MAINTAINER@
 Installed-Size: @INSTALLED_SIZE@
 Homepage: https://github.com/Vanuan/yunmai-noble
 Section: misc

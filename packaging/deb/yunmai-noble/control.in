@@ -1,7 +1,7 @@
 Package: yunmai-noble
 Version: @VERSION@
 Architecture: @ARCH@
-Maintainer: Vanuan <vanuan@gmail.com>
+Maintainer: @MAINTAINER@
 Installed-Size: @INSTALLED_SIZE@
 Homepage: https://github.com/Vanuan/yunmai-noble
 Depends: adduser, ca-certificates, dbus, libc6 (>= @LIBC@)

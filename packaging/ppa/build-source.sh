@@ -16,6 +16,9 @@ export LC_ALL=C
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 TEMPLATES="$ROOT/packaging/ppa/debian"
 APP_DEB_DIR="$ROOT/packaging/deb"
+# shellcheck source=../maintainer.env
+. "$ROOT/packaging/maintainer.env"
+MAINTAINER=${MAINTAINER:?packaging/maintainer.env must set MAINTAINER}
 
 IN="$ROOT/dist/deb"
 OUT="$ROOT/dist/ppa"
@@ -140,7 +143,10 @@ for pkg in yunmai-noble yunmai-noble-simulator; do
 done
 chmod 0755 "$SRC/debian/rules"
 
-sed "s|@ARCHS@|$ARCHS|g" "$TEMPLATES/control.in" > "$SRC/debian/control"
+sed \
+  -e "s|@ARCHS@|$ARCHS|g" \
+  -e "s|@MAINTAINER@|$MAINTAINER|g" \
+  "$TEMPLATES/control.in" > "$SRC/debian/control"
 
 if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
   DATE=$(date -R -d "@$SOURCE_DATE_EPOCH")
@@ -151,6 +157,7 @@ sed \
   -e "s|@VERSION@|$DEB_VERSION|g" \
   -e "s|@UPSTREAM@|$VERSION|g" \
   -e "s|@SERIES@|$SERIES|g" \
+  -e "s|@MAINTAINER@|$MAINTAINER|g" \
   -e "s|@DATE@|$DATE|g" \
   "$TEMPLATES/changelog.in" > "$SRC/debian/changelog"
 

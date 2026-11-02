@@ -14,6 +14,9 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 PKG_DIR="$ROOT/packaging/deb"
+# shellcheck source=../maintainer.env
+. "$ROOT/packaging/maintainer.env"
+MAINTAINER=${MAINTAINER:?packaging/maintainer.env must set MAINTAINER}
 
 ARCH=$(dpkg --print-architecture)
 VERSION=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1)
@@ -187,8 +190,13 @@ write_control() {
     -e "s|@VERSION@|$VERSION|g" \
     -e "s|@ARCH@|$ARCH|g" \
     -e "s|@LIBC@|$LIBC|g" \
+    -e "s|@MAINTAINER@|$MAINTAINER|g" \
     -e "s|@INSTALLED_SIZE@|$installed_size|g" \
     "$2" > "$target/DEBIAN/control"
+}
+
+write_changelog() {
+  sed "s|@MAINTAINER@|$MAINTAINER|g" "$1" | gzip -9n
 }
 
 write_md5sums() {
@@ -224,7 +232,7 @@ cp "$PKG_DIR/yunmai-noble/README.Debian" "$MAIN/usr/share/doc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/copyright" "$MAIN/usr/share/doc/yunmai-noble/"
 cp "$PKG_DIR/yunmai-noble/lintian-overrides" \
   "$MAIN/usr/share/lintian/overrides/yunmai-noble"
-gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
+write_changelog "$PKG_DIR/yunmai-noble/changelog" \
   > "$MAIN/usr/share/doc/yunmai-noble/changelog.gz"
 cp "$PKG_DIR/yunmai-noble/postinst" "$PKG_DIR/yunmai-noble/prerm" \
   "$PKG_DIR/yunmai-noble/postrm" "$MAIN/DEBIAN/"
@@ -280,7 +288,7 @@ if [ "$SKIP_DESKTOP" -eq 0 ]; then
   cp "$PKG_DIR/yunmai-noble-desktop/README.Debian" \
     "$PKG_DIR/yunmai-noble/copyright" \
     "$DESKTOP/usr/share/doc/yunmai-noble-desktop/"
-  gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
+  write_changelog "$PKG_DIR/yunmai-noble/changelog" \
     > "$DESKTOP/usr/share/doc/yunmai-noble-desktop/changelog.gz"
 
   find "$DESKTOP" -type d -exec chmod 0755 {} +
@@ -302,7 +310,7 @@ if [ "$SKIP_DESKTOP" -eq 0 ]; then
   cp "$PKG_DIR/yunmai-noble-full/README.Debian" \
     "$PKG_DIR/yunmai-noble/copyright" \
     "$FULL/usr/share/doc/yunmai-noble-full/"
-  gzip -9n -c "$PKG_DIR/yunmai-noble/changelog" \
+  write_changelog "$PKG_DIR/yunmai-noble/changelog" \
     > "$FULL/usr/share/doc/yunmai-noble-full/changelog.gz"
 
   find "$FULL" -type d -exec chmod 0755 {} +
@@ -334,7 +342,7 @@ cp "$PKG_DIR/yunmai-noble-simulator/README.Debian" \
   "$SIM/usr/share/doc/yunmai-noble-simulator/"
 cp "$PKG_DIR/yunmai-noble-simulator/copyright" \
   "$SIM/usr/share/doc/yunmai-noble-simulator/"
-gzip -9n -c "$PKG_DIR/yunmai-noble-simulator/changelog" \
+write_changelog "$PKG_DIR/yunmai-noble-simulator/changelog" \
   > "$SIM/usr/share/doc/yunmai-noble-simulator/changelog.gz"
 cp "$PKG_DIR/yunmai-noble-simulator/postinst" \
   "$PKG_DIR/yunmai-noble-simulator/prerm" \
