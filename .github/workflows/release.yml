@@ -29,7 +29,7 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check tag against package version
         run: |
@@ -80,7 +80,7 @@ jobs:
       - name: Build packages
         run: packaging/deb/build.sh --arch "${{ matrix.arch }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: deb-${{ matrix.arch }}
           path: dist/deb/*.deb
@@ -93,12 +93,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install packaging tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends dpkg-dev
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: deb-*
           merge-multiple: true
@@ -168,15 +168,15 @@ jobs:
             site/apt/yunmai-noble-archive-keyring.deb
           touch site/.nojekyll
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Checksums
         env:
