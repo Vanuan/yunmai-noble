@@ -10,7 +10,7 @@ test("defaults to the real BLE driver", () => {
     restartMs: 2000,
     simulator: {
       name: "YUNMAI-SIM",
-      weightKg: 7.5,
+      weightKg: 72.4,
       steps: 8,
       intervalMs: 300,
       cycleDelayMs: 5000,

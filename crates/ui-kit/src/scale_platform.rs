@@ -2,8 +2,8 @@ use gpui::{Div, FontWeight, div, prelude::*, px, rgb};
 
 const PLATFORM: u32 = 0xf5f5f4;
 const PLATFORM_EDGE: u32 = 0xd6d3d1;
-const ELECTRODE: u32 = 0xe7e5e4;
-const ELECTRODE_EDGE: u32 = 0xd6d3d1;
+const PANEL: u32 = 0xffffff;
+const PANEL_EDGE: u32 = 0xe7e5e4;
 const DISPLAY: u32 = 0x44403c;
 const BRAND: u32 = 0x78716c;
 const RUNNING: u32 = 0x10b981;
@@ -38,7 +38,8 @@ pub fn format_weight(weight_kg: f64, unit: &str) -> String {
 
 /// The physical-scale platform used by both the dashboard and the simulator.
 /// The caller supplies the display state; callers that want a button wrap it
-/// in a clickable container.
+/// in a clickable container. Everything here is decorative or read-only, so the
+/// card carries no shapes that could be mistaken for controls.
 pub fn scale_platform(
     weight_kg: f64,
     unit: &str,
@@ -69,19 +70,25 @@ pub fn scale_platform(
         .border_color(edge)
         .bg(rgb(PLATFORM))
         .shadow_2xl()
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
         .child(
             div()
-                .absolute()
-                .top(px(34. * scale))
-                .left_0()
-                .right_0()
                 .flex()
                 .flex_col()
                 .items_center()
-                .gap_1()
+                .gap_2()
+                .px(px(38. * scale))
+                .py(px(24. * scale))
+                .rounded_2xl()
+                .border_1()
+                .border_color(rgb(PANEL_EDGE))
+                .bg(rgb(PANEL))
                 .child(
                     div()
-                        .text_size(px(52. * scale))
+                        .text_size(px(56. * scale))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(rgb(DISPLAY))
                         .child(display),
@@ -104,37 +111,18 @@ pub fn scale_platform(
                         ),
                 ),
         )
-        .child(electrode(66., 252., false, scale))
-        .child(electrode(66., 252., true, scale))
         .child(
             div()
                 .absolute()
-                .bottom(px(34. * scale))
+                .bottom(px(28. * scale))
                 .left_0()
                 .right_0()
                 .text_center()
-                .text_size(px(12. * scale))
+                .text_size(px(11. * scale))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(BRAND))
                 .child("YUNMAI"),
         )
-}
-
-fn electrode(left: f32, top: f32, right: bool, scale: f32) -> Div {
-    let base = div()
-        .absolute()
-        .top(px(top * scale))
-        .w(px(112. * scale))
-        .h(px(30. * scale))
-        .rounded_full()
-        .border_1()
-        .border_color(rgb(ELECTRODE_EDGE))
-        .bg(rgb(ELECTRODE));
-    if right {
-        base.right(px(left * scale))
-    } else {
-        base.left(px(left * scale))
-    }
 }
 
 #[cfg(test)]

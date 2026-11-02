@@ -91,6 +91,7 @@ test('the app streams v1 measurements over WebSocket', async function() {
       NODE_ID: 'test-node',
       WS_PORT: String(port),
       SIMULATOR_NAME: 'YUNMAI-SIM',
+      SIMULATOR_WEIGHT_KG: '7.5',
       SIMULATOR_SCAN_DELAY_MS: '1',
       SIMULATOR_STEPS: '2',
       SIMULATOR_INTERVAL_MS: '500',

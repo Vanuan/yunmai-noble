@@ -4,6 +4,11 @@ pub fn format_weight(weight_kg: f64) -> String {
     format!("{weight_kg:.2} kg")
 }
 
+/// A weight span, with the unit appearing once: `72.10 – 72.40 kg`.
+pub fn format_weight_range(min_kg: f64, max_kg: f64) -> String {
+    format!("{min_kg:.2} – {max_kg:.2} kg")
+}
+
 pub fn format_timestamp(iso: &str) -> String {
     DateTime::parse_from_rfc3339(iso)
         .map(|time| {
@@ -31,6 +36,11 @@ mod tests {
     fn formats_weight_with_two_decimals() {
         assert_eq!(format_weight(71.4), "71.40 kg");
         assert_eq!(format_weight(100.0), "100.00 kg");
+    }
+
+    #[test]
+    fn formats_weight_ranges_with_one_unit() {
+        assert_eq!(format_weight_range(72.1, 72.45), "72.10 – 72.45 kg");
     }
 
     #[test]

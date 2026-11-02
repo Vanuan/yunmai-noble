@@ -4,7 +4,7 @@ const EventEmitter = require('events');
 const packets = require('./packets');
 
 const DEFAULT_OPTIONS = {
-  weightKg: 7.5,
+  weightKg: 72.4,
   startOffsetKg: 0.4,
   steps: 8,
   intervalMs: 300,
@@ -36,9 +36,9 @@ function roundWeight(weightKg) {
 function defaultHistory() {
   const now = currentTimeInSeconds();
   return [
-    { date: now - (3 * 86400), weightKg: 7.5, userId: 1 },
-    { date: now - (2 * 86400), weightKg: 7.35, userId: 1 },
-    { date: now - 86400, weightKg: 7.2, userId: 1 }
+    { date: now - (3 * 86400), weightKg: 72.4, userId: 1 },
+    { date: now - (2 * 86400), weightKg: 72.1, userId: 1 },
+    { date: now - 86400, weightKg: 71.8, userId: 1 }
   ];
 }
 

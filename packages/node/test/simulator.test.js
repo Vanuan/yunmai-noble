@@ -81,6 +81,7 @@ test('emits measurements and responds to commands', async function() {
     repeat: false,
     steps: 2,
     intervalMs: 5,
+    weightKg: 7.5,
     history: [
       { date: 1500000000, weightKg: 7.2, userId: 7 },
       { date: 1500000100, weightKg: 7.3, userId: 7 }

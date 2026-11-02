@@ -9,7 +9,7 @@ use gpui::{
 };
 
 use crate::api::{DriverStatus, HistorianClient, Measurement, SuiteSettings, SuiteState};
-use crate::format::{format_age, format_timestamp, format_weight};
+use crate::format::{format_age, format_timestamp, format_weight, format_weight_range};
 use crate::history::{HistoryGroup, group_consecutive};
 
 const BG: u32 = 0xfafaf9;
@@ -774,60 +774,44 @@ impl Dashboard {
             320.,
         );
 
-        let details =
-            match latest {
-                Some(measurement) => {
-                    let model = self
-                        .snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.device_model(&measurement.device_id));
-                    let body_composition = measurement.has_body_composition();
+        let details = match latest {
+            Some(measurement) => {
+                let model = self
+                    .snapshot
+                    .as_ref()
+                    .and_then(|snapshot| snapshot.device_model(&measurement.device_id));
+                let body_composition = measurement.has_body_composition();
 
-                    div()
-                        .flex_1()
-                        .flex()
-                        .flex_col()
-                        .justify_center()
-                        .gap_4()
-                        .child(
-                            div()
-                                .text_sm()
-                                .text_color(rgb(MUTED))
-                                .child("Latest reading"),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .flex_wrap()
-                                .gap_6()
-                                .child(metric(
-                                    "Measured",
-                                    format_timestamp(&measurement.scale_date),
-                                ))
-                                .child(metric("User", measurement.user_id.to_string()))
-                                .children(model.map(|model| metric("Model", model.to_string())))
-                                .child(metric("Device", measurement.device_id.clone()))
-                                .children(body_composition.then(|| {
-                                    metric("Fat %", measurement.fat_percentage.to_string())
-                                }))
-                                .children(body_composition.then(|| {
-                                    metric("Resistance", measurement.resistance.to_string())
-                                }))
-                                .child(metric(
-                                    "Firmware",
-                                    measurement
-                                        .firmware_version
-                                        .map(|version| version.to_string())
-                                        .unwrap_or_else(|| "—".to_string()),
-                                )),
-                        )
+                let mut rows = vec![
+                    detail_row("Measured", format_timestamp(&measurement.scale_date)),
+                    detail_row("User", measurement.user_id.to_string()),
+                ];
+                if let Some(model) = model {
+                    rows.push(detail_row("Model", model.to_string()));
                 }
-                None => div()
+                rows.push(detail_row("Device", measurement.device_id.clone()));
+                if body_composition {
+                    rows.push(detail_row(
+                        "Fat %",
+                        format!("{}%", measurement.fat_percentage),
+                    ));
+                    rows.push(detail_row("Resistance", measurement.resistance.to_string()));
+                }
+                rows.push(detail_row(
+                    "Firmware",
+                    measurement
+                        .firmware_version
+                        .map(|version| version.to_string())
+                        .unwrap_or_else(|| "-".to_string()),
+                ));
+
+                div()
                     .flex_1()
+                    .min_w(px(0.))
                     .flex()
                     .flex_col()
                     .justify_center()
-                    .gap_2()
+                    .gap_3()
                     .child(
                         div()
                             .text_sm()
@@ -836,15 +820,37 @@ impl Dashboard {
                     )
                     .child(
                         div()
-                            .text_sm()
-                            .text_color(rgb(MUTED))
-                            .child(if self.loading {
-                                "Connecting to the historian..."
-                            } else {
-                                "No measurements yet."
-                            }),
-                    ),
-            };
+                            .w_full()
+                            .max_w(px(380.))
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .children(rows),
+                    )
+            }
+            None => div()
+                .flex_1()
+                .flex()
+                .flex_col()
+                .justify_center()
+                .gap_2()
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(rgb(MUTED))
+                        .child("Latest reading"),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(rgb(MUTED))
+                        .child(if self.loading {
+                            "Connecting to the historian..."
+                        } else {
+                            "No measurements yet."
+                        }),
+                ),
+        };
 
         div()
             .rounded_2xl()
@@ -1022,11 +1028,12 @@ impl Dashboard {
                         .items_center()
                         .justify_between()
                         .child(div().text_sm().text_color(rgb(MUTED)).child("Weight trend"))
-                        .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
-                            "{} – {}",
-                            format_weight(min),
-                            format_weight(max)
-                        ))),
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(rgb(MUTED))
+                                .child(format_weight_range(min, max)),
+                        ),
                 )
                 .child(chart)
                 .child(
@@ -1569,11 +1576,16 @@ fn badge(label: impl Into<SharedString>, tone: u32) -> Div {
         .child(label.into())
 }
 
-fn metric(label: &'static str, value: String) -> Div {
+/// Label/value line for the latest-reading details.
+fn detail_row(label: &'static str, value: String) -> Div {
     div()
         .flex()
-        .flex_col()
-        .gap_1()
+        .items_center()
+        .justify_between()
+        .gap_6()
+        .py_1()
+        .border_b_1()
+        .border_color(rgb(BORDER))
         .child(div().text_xs().text_color(rgb(MUTED)).child(label))
         .child(div().text_sm().font_weight(FontWeight::MEDIUM).child(value))
 }

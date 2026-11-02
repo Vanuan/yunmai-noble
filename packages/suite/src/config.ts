@@ -18,7 +18,9 @@ export interface SimulatorConfig {
 // scale.js, which applies when the driver runs outside the suite.
 const SIMULATOR_DEFAULTS: SimulatorConfig = {
   name: "YUNMAI-SIM",
-  weightKg: 7.5,
+  // A realistic adult weight: a demo instance that reports 7.5 kg looks like
+  // broken test data in the dashboard.
+  weightKg: 72.4,
   steps: 8,
   intervalMs: 300,
   cycleDelayMs: 5000,
