@@ -133,6 +133,9 @@ export function startHttpServer(options: HttpServerOptions): Server<undefined> {
     }
 
     if (request.method !== "GET") {
+      if (url.pathname === "/api/measurements" && request.method === "DELETE") {
+        return jsonResponse({ deleted: store.clear() }, 200, corsOrigin);
+      }
       return errorResponse(405, "method_not_allowed", "Only GET is supported", corsOrigin);
     }
 

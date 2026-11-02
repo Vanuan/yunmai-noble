@@ -26,6 +26,11 @@ pub struct MeasurementsResponse {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct ClearedMeasurements {
+    pub deleted: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct DatabaseHealth {
     pub ok: bool,
 }
@@ -133,6 +138,21 @@ impl HistorianClient {
             path.push_str(&encode_query(cursor));
         }
         self.get_json(&path)
+    }
+
+    /// Delete every stored measurement and report how many were removed.
+    pub fn clear_measurements(&self) -> Result<u64, String> {
+        let path = "/api/measurements";
+        let url = format!("{}{path}", self.base_url);
+
+        match self.agent.delete(&url).call() {
+            Ok(response) => response
+                .into_json::<ClearedMeasurements>()
+                .map(|body| body.deleted)
+                .map_err(|error| format!("invalid response from {path}: {error}")),
+            Err(ureq::Error::Status(code, _)) => Err(format!("{path} failed: HTTP {code}")),
+            Err(ureq::Error::Transport(error)) => Err(format!("cannot reach historian: {error}")),
+        }
     }
 
     pub fn suite(&self) -> Result<SuiteState, String> {
@@ -384,6 +404,38 @@ mod tests {
 
         assert!(page.measurements.is_empty());
         assert!(page.next.is_none());
+    }
+
+    #[test]
+    fn deletes_measurements() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 2048];
+            let read = stream.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            assert!(
+                request.starts_with("DELETE /api/measurements "),
+                "unexpected request: {request}"
+            );
+
+            let body = r#"{"deleted":3}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        });
+
+        let client = HistorianClient::new(format!("http://{address}"));
+        assert_eq!(client.clear_measurements().unwrap(), 3);
+        server.join().unwrap();
     }
 
     #[test]

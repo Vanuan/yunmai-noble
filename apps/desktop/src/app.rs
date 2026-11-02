@@ -45,6 +45,8 @@ struct HistoryState {
     next: Option<String>,
     loading: bool,
     error: Option<String>,
+    /// The clear button asks for a second click before deleting.
+    confirm_clear: bool,
     /// Bumped on every reload so a late response cannot append to a new list.
     generation: u64,
 }
@@ -700,6 +702,43 @@ impl Dashboard {
         }
     }
 
+    /// Delete every measurement. The first click only arms the button, because
+    /// the historian has no undo.
+    fn clear_history(&mut self, cx: &mut Context<Self>) {
+        if !self.history.confirm_clear {
+            self.history.confirm_clear = true;
+            cx.notify();
+            return;
+        }
+
+        let url = self.historian_url.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move { HistorianClient::new(url).clear_measurements() })
+                .await;
+
+            this.update(cx, |state, cx| {
+                state.history = HistoryState {
+                    generation: state.history.generation + 1,
+                    ..HistoryState::default()
+                };
+
+                match result {
+                    Ok(_) => {
+                        if let Some(snapshot) = state.snapshot.as_mut() {
+                            snapshot.measurements.clear();
+                            snapshot.latest = None;
+                        }
+                    }
+                    Err(message) => state.history.error = Some(message),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
     fn open_historian(&mut self, cx: &mut Context<Self>) {
         let url = format!("{}/", self.historian_url.trim_end_matches('/'));
         if let Err(error) = open_in_browser(&url) {
@@ -972,6 +1011,19 @@ impl Dashboard {
                             .flex()
                             .items_center()
                             .gap_2()
+                            .children((loaded > 0).then(|| {
+                                button(
+                                    "clear-history",
+                                    if self.history.confirm_clear {
+                                        "Confirm clear"
+                                    } else {
+                                        "Clear history"
+                                    },
+                                    cx,
+                                    |state, cx| state.clear_history(cx),
+                                )
+                                .when(self.history.confirm_clear, |this| this.text_color(rgb(RED)))
+                            }))
                             .child(button("open-historian", "Open historian", cx, |state, cx| {
                                 state.open_historian(cx)
                             }))

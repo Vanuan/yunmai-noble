@@ -25,8 +25,10 @@ The dashboard card lists the five most recent readings. **View history**
 replaces the dashboard with the full list: 100 readings per page, requested as
 `GET /api/measurements?limit=100&before=<oldest scaleDate>`. Scrolling near the
 bottom, or pressing **Load more**, fetches the next page. Reopening the view
-starts again from the newest page. **Open historian** opens the web dashboard
-in the browser for charts and per-user views.
+starts again from the newest page. **Clear history** deletes every stored
+reading through `DELETE /api/measurements`; it asks for a second click because
+there is no undo. **Open historian** opens the web dashboard in the browser for
+charts and per-user views.
 
 ## Window chrome
 

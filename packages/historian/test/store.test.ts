@@ -91,6 +91,22 @@ test("returns the latest measurement", () => {
   }
 });
 
+test("clears every measurement but keeps devices", () => {
+  const store = new SqliteStore(":memory:");
+  try {
+    store.insert(input());
+    store.insert(input({ measuredAt: "2026-11-01T11:00:00.000Z", weightX100: 750 }));
+
+    assert.equal(store.clear(), 2);
+    assert.equal(store.list({ limit: 10 }).length, 0);
+    assert.equal(store.latest(), null);
+    assert.equal(store.devices().length, 1);
+    assert.equal(store.clear(), 0);
+  } finally {
+    store.close();
+  }
+});
+
 test("lists devices with the most recent sighting", () => {
   const store = new SqliteStore(":memory:");
   try {

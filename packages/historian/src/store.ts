@@ -46,6 +46,8 @@ export interface MeasurementStore {
   list(filter: MeasurementFilter): MeasurementRow[];
   latest(userId?: number): MeasurementRow | null;
   devices(): DeviceRow[];
+  /** Delete every measurement and return how many rows were removed. */
+  clear(): number;
   ping(): boolean;
   close(): void;
 }
@@ -234,6 +236,11 @@ export class SqliteStore implements MeasurementStore {
       lastSeenAt: row.last_seen_at,
       firmwareVersion: row.firmware_version,
     }));
+  }
+
+  clear(): number {
+    const result = this.db.prepare("DELETE FROM measurements").run();
+    return Number(result.changes);
   }
 
   ping(): boolean {

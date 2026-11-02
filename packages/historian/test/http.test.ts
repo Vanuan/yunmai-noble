@@ -151,6 +151,33 @@ test("returns measurements with filters and a cursor", async () => {
   });
 });
 
+test("deletes every measurement", async () => {
+  await withApp(async (app, base) => {
+    app.store.insert({
+      deviceId: "pi-scale-1",
+      measuredAt: "2026-11-01T10:00:00.000Z",
+      userId: 1,
+      weightX100: 741,
+      resistance: 0,
+      fatPercentage: 0,
+      historical: false,
+      firmwareVersion: 1,
+      receivedAt: "2026-11-01T10:00:01.000Z",
+    });
+
+    const cleared = await fetch(`${base}/api/measurements`, { method: "DELETE" });
+    assert.equal(cleared.status, 200);
+    assert.deepEqual(await cleared.json(), { deleted: 1 });
+
+    const remaining = await fetch(`${base}/api/measurements`);
+    const body = (await remaining.json()) as { measurements: unknown[] };
+    assert.equal(body.measurements.length, 0);
+
+    const latest = await fetch(`${base}/api/measurements/latest`);
+    assert.equal(latest.status, 404);
+  });
+});
+
 test("rejects invalid query parameters", async () => {
   await withApp(async (_app, base) => {
     for (const path of [
